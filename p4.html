@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>情绪海报 · 情绪像素块</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- 情绪球形状：p3 弹窗和本页共用同一份 -->
+  <link rel="stylesheet" href="css/mood.css" />
+  <link rel="stylesheet" href="css/p4.css" />
+
+  <!-- 像素字体：左上角英文走真正的像素字 Press Start 2P；
+       中文提示用系统宋体（SimSun），不需要额外下载 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+    rel="stylesheet"
+  />
+</head>
+<body class="page-poster">
+
+  <!-- ==================== 过渡：从右到左吃糖球 ==================== -->
+  <div class="eater" id="eater" aria-hidden="true">
+    <div class="eater__track" id="eaterTrack"></div>
+    <div class="eater__mouth" id="eaterMouth"></div>
+  </div>
+
+  <!-- ==================== 海报 ==================== -->
+  <main class="stage" id="stage" hidden>
+
+    <div class="poster-wrap" id="posterWrap">
+      <div class="poster" id="poster">
+
+        <!-- 顶部：像素大字的情绪英文（太长会折行）+ 正下方一句浅灰中文提示 -->
+        <div class="poster__head">
+          <p class="poster__emo" id="posterEmo">CALM</p>
+          <p class="poster__note" id="posterNote">&mdash;</p>
+        </div>
+
+        <!-- 中心：P2 捏出来、保存下来的那张表情 -->
+        <div class="poster__face" id="posterFace"></div>
+
+        <!-- 底部居中：日期 + 紧挨在它右边的 P3 情绪小圆球 -->
+        <div class="poster__foot">
+          <p class="poster__date" id="posterDate">2026.10.14</p>
+          <div class="poster__ball" id="posterBall" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage__actions">
+      <button class="pbtn" id="shuffleBtn" type="button">换个颜色</button>
+      <button class="pbtn pbtn--solid" id="downloadBtn" type="button">下载为图片</button>
+    </div>
+
+    <a class="stage__back" href="p3.html">&larr; 回到日历</a>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="js/mood.js"></script>
+  <script src="js/face-art.js"></script>
+  <script src="js/p4.js"></script>
+</body>
+</html>

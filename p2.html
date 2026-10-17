@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>情绪捏脸 · 情绪像素块</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/p2.css" />
+</head>
+<body class="page-studio">
+
+  <div class="studio">
+
+    <!-- 左上角文案 + 工具切换 -->
+    <header class="studio__hint">
+      <p class="studio__title">改动专属表情吧……</p>
+      <p class="studio__tip" id="studioTip">单击像素涂黑 · 再点一下擦白 · 按住拖动可连续涂抹</p>
+
+      <!-- 两种模式互斥：涂色层和五官/配件都靠 pointer-events 让路，
+           同一时刻只有一方能收到鼠标，不会互相抢事件 -->
+      <div class="tools">
+        <button class="tool is-on" id="modePaint" data-mode="paint" type="button">拼豆涂色</button>
+        <!-- 上色 = 用左下角「油漆桶」里选中的颜色给整块换色 -->
+        <button class="tool" id="modeBucket" data-mode="recolor" type="button">上色</button>
+        <button class="tool" id="modeMove" data-mode="move" type="button">移动缩放</button>
+        <button class="tool tool--ghost" id="paintClear" type="button">清空涂色</button>
+        <button class="tool tool--ghost" id="resetAll" type="button">恢复起始</button>
+      </div>
+    </header>
+
+    <!-- 中心舞台 -->
+    <main class="stage">
+      <!-- 人脸容器：绝对居中钉在页面正中心，自身不接收鼠标事件。
+           类名用 face-ball 而不是 face —— style.css 里已经有一个 .face
+           （首页卡牌上的 72px 像素脸，带白底黑框），撞名会连带把边框和内阴影带过来 -->
+      <div class="face-ball" id="ball">
+        <!-- 24×24 像素画布，圆环由 JS 按掩码填格 -->
+        <div class="face-ball__canvas" id="ballRing" aria-hidden="true"></div>
+
+        <!-- 拼豆涂色层：同一套 24×24 栅格，JS 只铺圆环内部的格子。
+             夹在圆环之上、五官之下，只有涂色模式才接管鼠标 -->
+        <div class="face-ball__paint" id="ballPaint" aria-hidden="true"></div>
+
+        <!-- is-default = 出厂那对平静五官。JS 还没跑起来的瞬间它就是初始表情，
+             带上这个类，才不会被当成「用户画的东西」显示出来。
+             上色 / 移动模式由 CSS 收起，动过之后 JS 会把这个类摘掉 -->
+        <div class="part part--eye is-default" data-part="eye-l"><i class="px-eye"></i></div>
+        <div class="part part--eye is-default" data-part="eye-r"><i class="px-eye"></i></div>
+
+        <div class="part part--mouth is-default" data-part="mouth">
+          <div class="mouth__px">
+            <span></span><span></span><span></span>
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 右侧配件栏：定宽 + 整屏高，内容超了就自己滚（tray__inner 负责居中） -->
+    <aside class="tray">
+      <div class="tray__inner">
+        <h2 class="tray__title">外观配件</h2>
+        <p class="tray__sub">DRAG ME ONTO THE FACE</p>
+
+        <!-- 配件的形状和颜色全部写在 js/p2.js 的 PROP_ART 里，
+             这里只声明有哪几种；缩略图由同一份掩码画出来，所见即所得 -->
+        <div class="tray__list">
+          <button class="chip" type="button" data-prop="heart">
+            <i class="chip__swatch"></i><span class="chip__name">红色爱心</span>
+          </button>
+          <button class="chip" type="button" data-prop="tear-long">
+            <i class="chip__swatch"></i><span class="chip__name">蓝色长条眼泪</span>
+          </button>
+          <button class="chip" type="button" data-prop="tear-drop">
+            <i class="chip__swatch"></i><span class="chip__name">蓝色水滴眼泪</span>
+          </button>
+          <button class="chip" type="button" data-prop="blush">
+            <i class="chip__swatch"></i><span class="chip__name">粉色椭圆脸蛋</span>
+          </button>
+          <button class="chip" type="button" data-prop="ring">
+            <i class="chip__swatch"></i><span class="chip__name">蓝色椭圆环</span>
+          </button>
+          <button class="chip" type="button" data-prop="glasses">
+            <i class="chip__swatch"></i><span class="chip__name">黑色墨镜</span>
+          </button>
+          <button class="chip" type="button" data-prop="hat">
+            <i class="chip__swatch"></i><span class="chip__name">黑色魔术帽</span>
+          </button>
+          <button class="chip" type="button" data-prop="anger">
+            <i class="chip__swatch"></i><span class="chip__name">红色生气符号</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 左下角：保存 + 下一步 + 表情记录 + 油漆桶调色盘 -->
+    <div class="dock">
+      <!-- 保存 = 落库（P4 读同一份数据）+ 追加一条表情记录 + 导出一张透明 PNG -->
+      <button class="save" id="saveBtn" type="button">保存</button>
+      <!-- 下一步 = 不走下载，直接去 P3 选今天的心情。
+           样式直接复用 .save，和「保存」是同一块黑色实心像素按钮 -->
+      <button class="save" id="nextBtn" type="button">下一步</button>
+      <button class="save save--ghost" id="recordsBtn" type="button">表情记录</button>
+
+      <div class="palette" id="palette">
+        <!-- 点它弹出/收起色板；小方块显示当前选中的颜色 -->
+        <button class="palette__btn" id="paletteBtn" type="button" aria-expanded="false">
+          <i class="palette__pip" id="palettePip"></i><span>油漆桶</span>
+        </button>
+        <!-- 9 个色块由 JS 按 PALETTE 生成 -->
+        <div class="palette__panel" id="palettePanel" role="listbox" aria-label="选择颜色"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 表情记录弹窗：缩略图由导出用的同一支画笔画出，点一张就载回画布 -->
+  <div class="records" id="records" aria-hidden="true">
+    <div class="records__box" role="dialog" aria-modal="true" aria-label="表情记录">
+      <div class="records__head">
+        <h2 class="records__title">表情记录</h2>
+        <button class="records__close" id="recordsClose" type="button">关闭</button>
+      </div>
+
+      <p class="records__empty" id="recordsEmpty">
+        还没有保存过的表情，点左下角「保存」就会存下一条。
+      </p>
+      <div class="records__grid" id="recordsGrid"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status">表情已保存</div>
+
+  <script src="js/p2.js"></script>
+</body>
+</html>

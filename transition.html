@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>情绪像素球 · 正在生成海报</title>
+  <style>
+    /* =========================================================
+       P3 → P4 过渡页：像素吃豆人吃 6 颗糖豆
+       ---------------------------------------------------------
+       画法全部是纯 CSS：
+       · 吃豆人 = 两个 120×120 的方块，用 clip-path 的 polygon 描出
+         12×12 的像素台阶轮廓（外层黑、内层黄），眼睛是一个 20×20 方块
+       · 糖豆 = 18×18 的方块 + 3px 黑边框
+       不使用任何图片、不引入外部字体，离线也能跑
+       ========================================================= */
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; margin: 0; }
+
+    body {
+      display: grid;
+      place-items: center;
+      background: #ffffff;          /* 纯白背景 */
+      overflow: hidden;
+    }
+
+    /* 舞台：720 × 200，吃豆人和糖豆都在里面绝对定位 */
+    .stage {
+      position: relative;
+      width: 720px;
+      height: 200px;
+    }
+
+    /* ---------- 6 颗糖豆：从左到右 红 绿 蓝 紫 灰 橘 ----------
+       位置固定，靠 animation-delay 决定被吃掉的时间点 */
+    .bean {
+      position: absolute;
+      top: 91px;
+      width: 18px;
+      height: 18px;
+      background: var(--c);
+      border: 3px solid #000000;
+      animation: bean-eaten .1s linear forwards;
+      animation-delay: var(--d);
+    }
+
+    .bean--red    { --c: #ff3b3b; }
+    .bean--green  { --c: #3fcf5e; }
+    .bean--blue   { --c: #2f8fff; }
+    .bean--purple { --c: #a06bff; }
+    .bean--gray   { --c: #9a9a9a; }
+    .bean--orange { --c: #ff9a3c; }
+
+    /* 吃豆人从右往左走：速度 860 / 2.5s = 344px/s，
+       玩家中心到达每颗糖豆的时间点就是下面的 delay */
+    .bean:nth-child(1) { left: 51px;  --d: 2.09s; }   /* 红 */
+    .bean:nth-child(2) { left: 151px; --d: 1.80s; }   /* 绿 */
+    .bean:nth-child(3) { left: 251px; --d: 1.51s; }   /* 蓝 */
+    .bean:nth-child(4) { left: 351px; --d: 1.22s; }   /* 紫 */
+    .bean:nth-child(5) { left: 451px; --d: .93s; }    /* 灰 */
+    .bean:nth-child(6) { left: 551px; --d: .64s; }    /* 橘 */
+
+    @keyframes bean-eaten {
+      to { opacity: 0; transform: scale(.2); }
+    }
+
+    /* ---------- 吃豆人 ----------
+       .pac 负责从左往右的位移，里面的 .pac__sprite 只负责翻转朝向
+       （图形画的是朝右，scaleX(-1) 翻成朝左，正好吃左边的糖豆） */
+    .pac {
+      position: absolute;
+      left: 720px;
+      top: 40px;
+      width: 120px;
+      height: 120px;
+      animation: pac-run 2.5s linear forwards;
+    }
+
+    @keyframes pac-run {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-860px); }
+    }
+
+    .pac__sprite {
+      position: absolute;
+      inset: 0;
+      transform: scaleX(-1);
+    }
+
+    /* 一帧 = 黑轮廓 + 黄身体 + 眼睛，两层用同一个 polygon 缩一圈 */
+    .pac__frame {
+      position: absolute;
+      inset: 0;
+    }
+
+    .pac__edge,
+    .pac__body {
+      position: absolute;
+      inset: 0;
+    }
+
+    .pac__edge {
+      background: #000000;                     /* 粗黑轮廓 */
+      clip-path: var(--edge);
+    }
+
+    .pac__body {
+      background: #ffe14d;                     /* 身体黄 */
+      clip-path: var(--body);
+    }
+
+    /* 单只眼睛：2×2 格 = 20×20 */
+    .pac__eye {
+      position: absolute;
+      left: 50px;
+      top: 20px;
+      width: 20px;
+      height: 20px;
+      background: #000000;
+    }
+
+    /* 嘴巴张开 / 闭合两帧交替，形成咀嚼循环 */
+    .pac__frame--closed { animation: chomp-a .28s linear infinite; }
+    .pac__frame--open   { animation: chomp-b .28s linear infinite; }
+
+    @keyframes chomp-a {
+      0%, 49.9% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+
+    @keyframes chomp-b {
+      0%, 49.9% { opacity: 0; }
+      50%, 100% { opacity: 1; }
+    }
+
+    /* ---------- 闭嘴：完整台阶圆 ---------- */
+    .pac__frame--closed {
+      --edge: polygon(
+        40px 0,    80px 0,
+        80px 10px, 100px 10px,
+        100px 20px, 110px 20px,
+        110px 40px, 120px 40px,
+        120px 80px, 110px 80px,
+        110px 100px, 100px 100px,
+        100px 110px, 80px 110px,
+        80px 120px, 40px 120px,
+        40px 110px, 20px 110px,
+        20px 100px, 10px 100px,
+        10px 80px,  0px 80px,
+        0px 40px,  10px 40px,
+        10px 20px, 20px 20px,
+        20px 10px, 40px 10px
+      );
+      --body: polygon(
+        40px 10px, 80px 10px,
+        80px 20px, 100px 20px,
+        100px 40px, 110px 40px,
+        110px 80px, 100px 80px,
+        100px 100px, 80px 100px,
+        80px 110px, 40px 110px,
+        40px 100px, 20px 100px,
+        20px 80px, 10px 80px,
+        10px 40px, 20px 40px,
+        20px 20px, 40px 20px
+      );
+    }
+
+    /* ---------- 张嘴：右侧挖出一个 V 形缺口（朝左吃，翻转后开口在左边） ---------- */
+    .pac__frame--open {
+      --edge: polygon(
+        40px 0,    80px 0,
+        80px 10px, 100px 10px,
+        100px 20px, 110px 20px,
+        110px 40px, 100px 40px,
+        100px 50px, 70px 50px,
+        70px 70px, 100px 70px,
+        100px 80px, 110px 80px,
+        110px 100px, 100px 100px,
+        100px 110px, 80px 110px,
+        80px 120px, 40px 120px,
+        40px 110px, 20px 110px,
+        20px 100px, 10px 100px,
+        10px 80px,  0px 80px,
+        0px 40px,  10px 40px,
+        10px 20px, 20px 20px,
+        20px 10px, 40px 10px
+      );
+      --body: polygon(
+        40px 10px, 80px 10px,
+        80px 20px, 100px 20px,
+        100px 40px, 90px 40px,
+        90px 50px, 60px 50px,
+        60px 70px, 90px 70px,
+        90px 80px, 100px 80px,
+        100px 100px, 80px 100px,
+        80px 110px, 40px 110px,
+        40px 100px, 20px 100px,
+        20px 80px, 10px 80px,
+        10px 40px, 20px 40px,
+        20px 20px, 40px 20px
+      );
+    }
+
+    /* 小屏整体缩一下，位置关系不变 */
+    @media (max-width: 800px) {
+      .stage { transform: scale(.72); }
+    }
+
+    @media (max-width: 560px) {
+      .stage { transform: scale(.5); }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage" role="img" aria-label="像素吃豆人正在吃掉六颗糖豆，马上生成海报">
+    <!-- 糖豆：红 绿 蓝 紫 灰 橘 -->
+    <i class="bean bean--red"></i>
+    <i class="bean bean--green"></i>
+    <i class="bean bean--blue"></i>
+    <i class="bean bean--purple"></i>
+    <i class="bean bean--gray"></i>
+    <i class="bean bean--orange"></i>
+
+    <!-- 吃豆人：黑轮廓 + 黄身体 + 单眼，嘴巴两张嘴交替 -->
+    <div class="pac">
+      <div class="pac__sprite">
+        <div class="pac__frame pac__frame--closed">
+          <i class="pac__edge"></i>
+          <i class="pac__body"></i>
+          <i class="pac__eye"></i>
+        </div>
+        <div class="pac__frame pac__frame--open">
+          <i class="pac__edge"></i>
+          <i class="pac__body"></i>
+          <i class="pac__eye"></i>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /* 动画总长 2.5 秒，播完直接去海报页。
+       p4.html 不带 ?play —— 过渡在这里已经演过了，别再演一遍 */
+    setTimeout(function () {
+      window.location.href = 'p4.html';
+    }, 2500);
+  </script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>情绪像素块 · EMOTION PIXEL BALL</title>
+  <meta name="description" content="纯 HTML / CSS / JS 绘制的像素风情绪记录网页" />
+
+  <!-- 像素字体：英文 Press Start 2P，中文 ZCOOL QingKe HuangYou -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=ZCOOL+QingKe+HuangYou&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- 情绪球形状：GAME 卡片封面里散落的那些小球用它 -->
+  <link rel="stylesheet" href="css/mood.css" />
+</head>
+<body>
+
+  <!-- ==================== 第一屏 · 果冻球的活动范围 ====================
+       #hero-section 高度锁死一屏 + overflow:hidden，
+       果冻球被关在这里，滚动到第二、三屏就看不到了 -->
+  <div id="hero-section">
+
+    <!-- 导航（右上角，属于第一屏，随第一屏一起滚走） -->
+    <nav class="nav" aria-label="主导航">
+      <a class="nav__item" href="#cards"        title="情绪卡片">EMOTION CARDS</a>
+      <a class="nav__item" href="p2.html"       title="制作情绪表情记录">MAKE RECORD</a>
+      <a class="nav__item" href="p3.html?focus=1" title="今日情绪">TODAY MOOD</a>
+      <a class="nav__item" href="game.html"     title="小游戏">MINI GAME</a>
+    </nav>
+
+
+    <!-- ==================== 区域一：HERO ==================== -->
+    <section class="hero" id="top">
+
+      <!-- 背景：原来用 CSS 点阵球做的下落动画，现已交给 p5 软体物理引擎（js/jellyball-bg.js）。
+           canvas 不在 HTML 里写死，由 JS 用 .parent() 挂到本容器末尾（z-index:0）。
+           想恢复 CSS 版本的话，把下面这段取消注释即可：
+      <div class="hero__stage" aria-hidden="true">
+        <span class="ball ball--1"></span>
+        <span class="ball ball--2"></span>
+        <span class="ball ball--3"></span>
+        <span class="ball ball--4"></span>
+        <span class="ball ball--5"></span>
+      </div>
+      -->
+
+      <!-- 左中标题 -->
+      <h1 class="hero__title">情绪<br />像素块</h1>
+
+      <!-- 底部按钮 -->
+      <div class="hero__enter">
+        <button class="btn-pixel" id="enter-btn" type="button">ENTER</button>
+        <p class="hero__hint">CLICK TO ENTER</p>
+      </div>
+    </section>
+
+    <!-- p5 的 <canvas id="jelly-bg"> 会被追加到这里 -->
+
+  </div>
+
+
+  <!-- ==================== 区域二：情绪卡牌 ==================== -->
+  <section class="section" id="cards">
+    <header class="section__head">
+      <h2 class="section__title">情绪卡牌</h2>
+      <p class="section__sub">EMOTION CARDS / SCROLL &rarr;</p>
+    </header>
+
+    <!-- 无缝滚动带：7 张卡牌 + 同样 7 张复制一份，14 张排成一行。
+         整条轨道向左平移 50%，正好等于一组卡牌的宽度，
+         所以第二组滑到开头时接缝看不出拼接 -->
+    <div class="cards-rail" role="region" aria-label="情绪卡牌展示">
+      <div class="cards-track">
+
+        <!-- 大组 A：14 张 = 7 张卡牌走两轮。
+             卡牌是 810×1080 的竖图，300px 高时一张约 225px 宽，
+             7 张只有 1695px，不够盖住一屏（位移到 -50% 时右边必露白）；
+             走两轮凑到约 3410px，常见屏幕都填得满 -->
+        <img class="cards-track__img" src="assets/1.png" alt="情绪卡牌 1" />
+        <img class="cards-track__img" src="assets/2.png" alt="情绪卡牌 2" />
+        <img class="cards-track__img" src="assets/3.png" alt="情绪卡牌 3" />
+        <img class="cards-track__img" src="assets/4.png" alt="情绪卡牌 4" />
+        <img class="cards-track__img" src="assets/5.png" alt="情绪卡牌 5" />
+        <img class="cards-track__img" src="assets/6.png" alt="情绪卡牌 6" />
+        <img class="cards-track__img" src="assets/7.jpg" alt="情绪卡牌 7" />
+        <img class="cards-track__img" src="assets/1.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/2.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/3.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/4.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/5.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/6.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/7.jpg" alt="" aria-hidden="true" />
+
+        <!-- 大组 B：和大组 A 一模一样，接在它后面。
+             轨道整体左移 50% 时，B 的开头正好落在 A 的开头上，接缝无痕 -->
+        <img class="cards-track__img" src="assets/1.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/2.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/3.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/4.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/5.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/6.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/7.jpg" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/1.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/2.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/3.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/4.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/5.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/6.png" alt="" aria-hidden="true" />
+        <img class="cards-track__img" src="assets/7.jpg" alt="" aria-hidden="true" />
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ==================== 区域三：情绪系列 ==================== -->
+  <section class="section" id="pages">
+    <header class="section__head">
+      <h2 class="section__title">情绪系列</h2>
+      <p class="section__sub">EMOTION SERIES / P2 · P3 · GAME</p>
+    </header>
+
+    <!-- 三张拍立得：各自轻微倾斜、错落摆放，
+         悬停回正并微微放大（角度在 CSS 里按 :nth-child 分配） -->
+    <div class="entries">
+
+      <!-- P2：黄色像素笑脸 + 表情记录卡 + 配件格 -->
+      <a class="entry" href="p2.html" aria-label="制作情绪表情记录">
+        <div class="cover cover--p2">
+          <div class="cover__head">
+            <div class="smile" aria-hidden="true">
+              <i class="smile__eye smile__eye--l"></i>
+              <i class="smile__eye smile__eye--r"></i>
+              <i class="smile__mouth"></i>
+              <i class="smile__cheek smile__cheek--l"></i>
+              <i class="smile__cheek smile__cheek--r"></i>
+            </div>
+            <p class="cover__title">表情记录卡</p>
+          </div>
+
+          <!-- 4 行 6 列：格子由 JS 按图标表循环填满 -->
+          <div class="cover__grid" id="p2Grid" aria-hidden="true"></div>
+        </div>
+      </a>
+
+      <!-- P3：表情日历封面，整张铺满卡面。
+           原图就在 图2/表情日历.png，直接引用，不用再复制一份 -->
+      <a class="entry" href="p3.html" aria-label="情绪日历">
+        <img class="entry__img" src="图2/表情日历.png" alt="情绪日历" />
+      </a>
+
+      <!-- GAME：顶部 game 标题 + 散落的情绪球（由 JS 随机摆放） -->
+      <a class="entry" href="game.html" aria-label="小游戏">
+        <div class="cover cover--game">
+          <p class="cover__game-title">game</p>
+          <div class="cover__balls" id="gameBalls" aria-hidden="true"></div>
+        </div>
+      </a>
+
+    </div>
+  </section>
+
+
+  <footer class="foot">
+    <span class="foot__dot"></span>
+    <span>EMOTION PIXEL BALL · PURE HTML / CSS / JS</span>
+  </footer>
+
+
+  <!-- 情绪球模块 + 两张卡片的封面生成（先加载，再跑页面交互） -->
+  <script src="js/mood.js"></script>
+  <script src="js/index-covers.js"></script>
+
+  <!-- ==================== 页面交互 ==================== -->
+  <script>
+    /* ENTER 按钮：进入「制作情绪表情记录」页。
+       显式 addEventListener 绑定，不依赖内联 onclick，
+       也不依赖任何第三方库 —— 就算 p5 没加载出来也照样能跳转 */
+    var enterBtn = document.getElementById('enter-btn');
+    if (enterBtn) {
+      enterBtn.addEventListener('click', function () {
+        window.location.href = 'p2.html';
+      });
+    }
+
+    /* 其余带 data-scroll 的元素继续走页内平滑滚动 */
+    document.querySelectorAll('[data-scroll]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var target = document.querySelector(el.dataset.scroll);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  </script>
+
+  <!-- p5.js 软体物理背景 -->
+  <script src="https://cdn.jsdelivr.net/npm/p5@1/lib/p5.min.js"></script>
+
+  <!-- 物理引擎，来自 skech/sketch1845995/，原始文件未做任何改动。
+       加载顺序不能乱：Coordinate2D → geometry → Particle/ChainableParticle
+                      → DistanceJoint → HashGrid，最后才是主 sketch -->
+  <script src="skech/sketch1845995/coordinate-point.js"></script>
+  <script src="skech/sketch1845995/geometry-util.js"></script>
+  <script src="skech/sketch1845995/particle.js"></script>
+  <script src="skech/sketch1845995/joints.js"></script>
+  <script src="skech/sketch1845995/hash-grid.js"></script>
+
+  <script src="js/jellyball-bg.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,947 @@
+/* =========================================================
+   P2 · 情绪捏脸页
+   依赖 style.css 中的 :root 变量与全局光标设置
+   ========================================================= */
+
+.page-studio {
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.studio {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  /* 右栏由 300px 收到 260px，把人脸能占的横向空间让出来，
+     人脸尺寸公式里也按这个宽度留了安全间距，两者是配套的 */
+  grid-template-columns: 1fr 260px;
+  align-items: center;
+}
+
+/* ---------- 左上角文案 ---------- */
+.studio__hint {
+  position: absolute;
+  top: var(--px6);
+  left: 6vw;
+  z-index: 20;
+}
+
+.studio__title {
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-shadow: 4px 4px 0 var(--ink-08);
+}
+
+.studio__tip {
+  margin-top: var(--px2);
+  font-size: 11px;
+  letter-spacing: .14em;
+  color: var(--ink-40);
+}
+
+/* ---------- 工具切换（拼豆涂色 / 拖动五官 / 清空） ---------- */
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--px);
+  margin-top: var(--px3);
+}
+
+.tool {
+  padding: 10px 18px;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: .14em;
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--line) solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink-12);
+  transition: transform .25s var(--jelly), box-shadow .25s var(--jelly),
+              background .2s ease, color .2s ease;
+}
+
+.tool:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 var(--ink-16);
+}
+
+.tool:active {
+  transform: translate(3px, 3px);
+  box-shadow: 2px 2px 0 var(--ink-12);
+}
+
+/* 选中的模式：实心反白 */
+.tool.is-on {
+  color: var(--paper);
+  background: var(--ink);
+}
+
+/* 次要按钮：描边弱一点，别和模式切换抢视线 */
+.tool--ghost {
+  color: var(--ink-64);
+  border-color: var(--ink-24);
+  box-shadow: 6px 6px 0 var(--ink-05);
+}
+
+/* 清空成功：复用保存按钮那下果冻弹跳 */
+.tool.is-flash {
+  animation: save-pop .5s var(--jelly);
+}
+
+/* ---------- 舞台 ---------- */
+.stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+/* =========================================================
+   人脸容器
+   ---------------------------------------------------------
+   1) 绝对居中，钉死在页面正中心，不参与任何文档流布局
+   2) pointer-events: none —— 脸本身不接收鼠标事件，
+      所以不存在「拖动整张脸」的可能；五官和配件在各自的
+      规则里单独把指针事件打开。
+   注意：类名前缀必须避开 style.css 里的 .ball
+   （那是首页的下落点阵球，带无限循环动画，会污染这一页）
+   ========================================================= */
+.face-ball {
+  /* --size : 人脸的实际边长，由四个条件取最小：
+            ① 屏幕宽度减去托盘（260px）与两边呼吸位；
+            ② 50vh —— 上下各空出 25% 屏幕高度，顶上放得下魔术帽、
+               底下放得下围巾和眼泪；
+            ③ 40vw —— 窄窗口时保证左右还留得住眼镜的位置；
+            ④ 540px 硬上限，免得大屏上脸大得离谱。
+            max(280px, …) 是兜底，防止窄窗口把它算成负数。
+            整体比原来（68vh / 720px 上限）小 25%～28%。
+    --u    : 1 个「逻辑单位」等于多少像素。
+            人脸内部所有坐标（五官位置、像素块尺寸）都按 240 基准写死，
+            乘上 --u 就自动跟随人脸缩放 —— 坐标系本身没变，
+            所以 localStorage 里存的、P4 海报页读的那份数据也完全不变。
+            另外 js/p2.js 的 syncScale() 会把实际尺寸吸附到 24 的整数倍，
+            让 24 格栅格每格都落在整数像素上，边缘不糊。 */
+  --size: min(max(280px, calc(100vw - 640px)), 50vh, 40vw, 540px);
+  --u: calc(var(--size) / 240);
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  width: var(--size);
+  height: var(--size);
+
+  pointer-events: none;         /* 关键：脸收不到鼠标，拖不跑 */
+  border-radius: 50%;           /* 只是让落点光晕是圆的，不裁剪任何内容 */
+
+  /* 自己去开一个层叠上下文：原来这一步是 filter 顺带做到的，
+     景深去掉之后改用 isolation 顶上，否则配件的 z-index
+     会窜到托盘上面去（托盘本身没有 z-index） */
+  isolation: isolate;
+
+  transition: box-shadow .3s var(--jelly);
+}
+
+/* 拖配件悬停在脸上时，脸外围亮一圈当落点提示（平的，不带景深） */
+.face-ball.is-target {
+  box-shadow: 0 0 0 calc(var(--u) * 6) var(--ink-12);
+}
+
+/* ---------------------------------------------------------
+   24×24 像素画布
+   纯 CSS Grid：24 列 × 24 行，每格 10px。
+   JS 只往里面塞「圆环上要点亮的格子」，每个像素块跨 2×2 格，
+   所以底层网格细了一倍，圆环的颗粒还和原来一样大。
+   --------------------------------------------------------- */
+.face-ball__canvas {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  grid-template-rows: repeat(24, 1fr);
+  /* 像素保真：格子的边缘一律硬切，不参与任何重采样抗锯齿 */
+  image-rendering: pixelated;
+}
+
+/* 圆环描边颜色可调（油漆桶点圆环就能改） */
+.face-ball__canvas > i {
+  background: var(--face-ring, var(--ink));
+}
+
+/* 脸部底色：圆环内圈的格子由 JS 一起铺出来，
+   颜色统一挂在这个变量上，改一次整张脸都变 */
+.face-ball__canvas > i.base-px {
+  background: var(--face-base, var(--paper));
+}
+
+/* =========================================================
+   拼豆涂色层
+   ---------------------------------------------------------
+   和圆环画布共用一套 24×24 栅格，所以一个「拼豆」是圆环 1 格的四分之一
+   （10 个逻辑单位 × --u），颗粒感天然对齐。
+   JS 只往圆环内部铺格子，环外不生成 —— 否则涂上去会变成悬在脸外的像素。
+   默认 pointer-events: none，只有 .is-paint 时才接管鼠标，
+   这样它和五官 / 配件的拖拽永远只有一方在工作。
+   ========================================================= */
+.face-ball__paint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  grid-template-rows: repeat(24, 1fr);
+  image-rendering: pixelated;   /* 同圆环画布：硬边像素 */
+  pointer-events: none;
+}
+
+.paint-px {
+  /* 空格子透明；涂上颜色后由 JS 直接写 style.background（9 色任选） */
+  background: transparent;
+}
+
+/* ---------- 涂色 / 上色两种模式共用的部分 ----------
+   两种模式都由涂色层接管脸上的点击：
+   光标的十字形也一起换掉（和全站自定义指针同一套画法） */
+.face-ball.is-paint .face-ball__paint,
+.face-ball.is-recolor .face-ball__paint {
+  pointer-events: auto;
+  cursor: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='19'%20height='19'%20shape-rendering='crispEdges'%3E%3Crect%20y='9'%20width='19'%20height='1'%20fill='%23000000'/%3E%3Crect%20x='9'%20width='1'%20height='19'%20fill='%23000000'/%3E%3C/svg%3E") 9 9, crosshair;
+}
+
+/* 极淡的辅助网格，只用来对位。
+   每格只画左边和上边各 1px：相邻两格合起来才是一条 1px 细线。
+   如果每格画满一圈（inset 0 0 0 1px），两个格子挨着就是 2px 双线，
+   视觉上会明显变深 —— 这正是之前网格偏重的原因。 */
+.face-ball.is-paint .paint-px,
+.face-ball.is-recolor .paint-px {
+  box-shadow: inset 1px 0 0 var(--ink-05), inset 0 1px 0 var(--ink-05);
+}
+
+/* 两种模式下五官和配件都不接鼠标事件：
+   点击一律落到涂色层，由 JS 算坐标决定点到了谁。
+   上色模式必须让它们保持原样可见 —— 要看着颜色点才能改色。 */
+.face-ball.is-paint .part,
+.face-ball.is-recolor .part,
+.face-ball.is-paint .prop,
+.face-ball.is-recolor .prop {
+  pointer-events: none;
+}
+
+/* 涂色模式下的脸是一块空白拼豆板：
+   五官彻底隐形（用 opacity: 0 而不是 display: none，
+   盒子尺寸、层级、命中范围全部原封不动），
+   想摆五官就切到「移动缩放」模式，那里它们才显示出来可拖。 */
+.face-ball.is-paint .part {
+  opacity: 0;
+}
+
+.face-ball.is-paint .prop {
+  opacity: .3;
+}
+
+/* 移动缩放 / 上色两种模式下的「初始表情」：出厂那张平静脸（方眼睛 + 一字嘴）
+   是页面自带的起点，不是用户的作品，所以一律收起来 ——
+   点「上色」时画布上只剩轮廓和底色，绝不会凭空冒出一对默认眼睛和一条默认嘴巴。
+   用户拖过 / 上过色 / 拉过弧度之后，它不再带 is-default，会照常显示。 */
+.face-ball.is-move .part.is-default,
+.face-ball.is-recolor .part.is-default {
+  opacity: 0;
+}
+
+/* 收起来≠拿不到：移动模式下 opacity: 0 的元素照样吃鼠标事件，
+   鼠标扫过它原来的位置时淡淡透出来一下，
+   想用这对出厂五官的人（拖走或上色）一眼就知道它还在那。
+   （上色模式下五官整体 pointer-events: none，命中由坐标算 ——
+   点它原来的位置照样能上色，颜色一换就退掉 is-default、重新显示出来） */
+.face-ball.is-move .part.is-default:hover {
+  opacity: .35;
+}
+
+/* ---------- 笔刷方块：标出这一格会涂到哪 ---------- */
+.paint-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  width: calc(var(--u) * 10);      /* 1 个拼豆，跟 JS 的 PAINT_CELL 对齐 */
+  height: calc(var(--u) * 10);
+  box-shadow: inset 0 0 0 3px var(--ink-64);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .16s ease;
+}
+
+.face-ball.is-paint .paint-cursor.is-on {
+  opacity: 1;
+}
+
+/* =========================================================
+   五官通用：外层负责位移，内层负责弹跳
+   ========================================================= */
+.part {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  /* 脸容器是 pointer-events:none，五官必须自己把指针事件打开才拖得动 */
+  pointer-events: auto;
+  /* 松手回弹：jelly 曲线自带过冲；opacity 给涂色模式压暗用 */
+  transition: transform .5s var(--jelly), opacity .28s ease;
+}
+
+/* 拖拽中：跟随鼠标，不要过渡，否则手感发黏。
+   原来这里给五官加了一层投影做景深，现在去掉，保持纯平的像素块 */
+.part.is-dragging {
+  transition: none;
+}
+
+.part.is-dragging .mouth__px > span {
+  transition: none;
+}
+
+/* 松手落地：内层弹一下（不影响外层的定位 transform） */
+.part.is-landing > * {
+  animation: jelly-pop .5s var(--jelly);
+}
+
+@keyframes jelly-pop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.32, .70); }
+  65%  { transform: scale(.92, 1.12); }
+  100% { transform: scale(1); }
+}
+
+/* ---------- 眼睛：2×2 格的黑色像素块 ----------
+   --face-part 是这只眼睛自己的颜色，由 JS 挂在 .part 上，
+   油漆桶点一下就能单独改掉（两眼互不影响） */
+.px-eye {
+  position: absolute;
+  left: calc(var(--u) * -20);
+  top: calc(var(--u) * -20);
+  width: calc(var(--u) * 40);
+  height: calc(var(--u) * 40);
+  background: var(--face-part, var(--ink));
+}
+
+/* ---------- 嘴巴：6 个 1 格像素块横排 ---------- */
+.mouth__px {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+}
+
+.mouth__px > span {
+  position: absolute;
+  top: calc(var(--u) * -10);
+  width: calc(var(--u) * 20);
+  height: calc(var(--u) * 20);
+  background: var(--face-part, var(--ink));
+  /* 弧度变化时平滑滑动，松手带弹性 */
+  transition: transform .45s var(--jelly);
+}
+
+.mouth__px > span:nth-child(1) { left: calc(var(--u) * -60); }
+.mouth__px > span:nth-child(2) { left: calc(var(--u) * -40); }
+.mouth__px > span:nth-child(3) { left: calc(var(--u) * -20); }
+.mouth__px > span:nth-child(4) { left: 0; }
+.mouth__px > span:nth-child(5) { left: calc(var(--u) * 20); }
+.mouth__px > span:nth-child(6) { left: calc(var(--u) * 40); }
+
+/* =========================================================
+   配件栏
+   ---------------------------------------------------------
+   宽度由 .studio 的 grid 列给定（260px），高度占满一屏，
+   内容多了自己纵向滚动。
+   注意不能用 justify-content: center 来居中内容 ——
+   一旦内容高过容器，居中会把顶部挤到滚动区之外、滚不回去。
+   所以外层只负责滚动，内层 min-height: 100% 自己居中：
+   内容少时居中，内容多时内层被撑高，从头滚到尾都是完整的。
+   ========================================================= */
+.tray {
+  width: 100%;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-left: var(--line) solid var(--ink-08);
+}
+
+/* Firefox 的滚动条样式必须包在 @supports 里：
+   Chrome 121+ 也认 scrollbar-width，一旦写上就会忽略 ::-webkit-scrollbar，
+   辛苦画的像素滚动条反而没了 */
+@supports not selector(::-webkit-scrollbar) {
+  .tray {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ink) var(--paper);
+  }
+}
+
+/* WebKit / Blink：滚动条也做成硬边方块 */
+.tray::-webkit-scrollbar {
+  width: 12px;
+}
+
+.tray::-webkit-scrollbar-track {
+  background: var(--paper);
+  border-left: var(--line) solid var(--ink-08);
+}
+
+.tray::-webkit-scrollbar-thumb {
+  background: var(--ink);
+  border: 3px solid var(--paper);
+}
+
+.tray__inner {
+  min-height: 100%;
+  padding: var(--px6) var(--px4);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--px3);
+}
+
+.tray__title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: .22em;
+}
+
+.tray__sub {
+  font-size: 10px;
+  letter-spacing: .2em;
+  color: var(--ink-40);
+}
+
+.tray__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--px2);
+  margin-top: var(--px2);
+}
+
+/* 配件按钮 */
+.chip {
+  display: flex;
+  align-items: center;
+  gap: var(--px2);
+  padding: var(--px2);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: .12em;
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--line) solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink-12);
+  transition: transform .25s var(--jelly), box-shadow .25s var(--jelly);
+}
+
+.chip:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: 9px 9px 0 var(--ink-16);
+}
+
+.chip:active {
+  transform: translate(3px, 3px);
+  box-shadow: 2px 2px 0 var(--ink-12);
+}
+
+/* 掩码铺出来的像素图：一格一个 <i>，行列交给 grid 排。
+   容器尺寸由 JS 按格子数算好写进 style，这里只管排布 */
+.px-art {
+  display: grid;
+}
+
+/* 缩略图：不再是色块，而是用同一张掩码画的迷你像素图，
+   做成固定大小的取景框，把图画在正中间，各行按钮高度才会齐 */
+.chip__swatch {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+}
+
+.chip__name {
+  white-space: nowrap;
+}
+
+/* ---------- 拖拽跟随的幽灵：就是配件本体，只是半透明 ---------- */
+.ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 999;
+  pointer-events: none;
+  opacity: .9;
+  transition: opacity .18s ease;
+}
+
+.ghost.is-gone {
+  opacity: 0;
+}
+
+/* ---------- 已放置到脸上的配件 ---------- */
+.prop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  /* 实际尺寸由 JS 按掩码格数算好写进 style，这两行只是兜底 */
+  width: calc(var(--u) * 40);
+  height: calc(var(--u) * 40);
+  /* 同五官：脸不收指针事件，配件自己打开 */
+  pointer-events: auto;
+  transition: transform .5s var(--jelly), opacity .25s ease;
+  will-change: transform;
+}
+
+/* 内部像素格撑满盒子：盒子尺寸一变，格子跟着变，不用重建 DOM */
+.prop > .px-art {
+  width: 100%;
+  height: 100%;
+}
+
+/* 选中：像素描边框。白垫一圈，黑配件贴着白底也看得见 */
+.prop.is-selected {
+  box-shadow: 0 0 0 calc(var(--u) * 2) var(--paper),
+              0 0 0 calc(var(--u) * 4) var(--ink);
+}
+
+/* 拖到球外：变淡，提示会被丢掉 */
+.prop.is-discard {
+  opacity: .3;
+}
+
+/* 拖拽中的配件浮到上层 */
+.prop.is-dragging {
+  z-index: 5;
+}
+
+/* ---------- 旋转手柄 ----------
+   它不是配件的子元素，而是脸的独立子元素，位置由 JS 按
+   配件中心 + 旋转角算出来。这样手柄既不会跟着配件一起缩放
+   （否则放大配件时手柄大得没法抓），也不会被转成一个歪方块。 */
+.prop-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 7;
+  width: calc(var(--u) * 14);
+  height: calc(var(--u) * 14);
+  background: var(--ink);
+  box-shadow: inset 0 0 0 calc(var(--u) * 4) var(--paper);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease;
+}
+
+.prop-handle.is-on {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 涂色模式下配件本来就不可操作，手柄一并收起来 */
+.face-ball.is-paint .prop-handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* =========================================================
+   左下角：保存 + 油漆桶调色盘
+   ========================================================= */
+.dock {
+  position: absolute;
+  left: 6vw;
+  bottom: var(--px6);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--px4);
+}
+
+.save {
+  padding: 16px 48px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .3em;
+  text-indent: .3em;
+  color: var(--paper);
+  background: var(--ink);
+  border: 0;
+  clip-path: polygon(
+    0 8px, 8px 8px, 8px 0,
+    calc(100% - 8px) 0,
+    calc(100% - 8px) 8px, 100% 8px,
+    100% calc(100% - 8px),
+    calc(100% - 8px) calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    8px 100%,
+    8px calc(100% - 8px), 0 calc(100% - 8px)
+  );
+  filter: drop-shadow(7px 7px 0 var(--ink-24));
+  transition: transform .28s var(--jelly), filter .28s var(--jelly);
+}
+
+.save:hover {
+  transform: translate(-3px, -3px);
+  filter: drop-shadow(11px 11px 0 var(--ink-24));
+}
+
+.save:active {
+  transform: translate(5px, 5px);
+  filter: drop-shadow(0 0 0 var(--ink-24));
+}
+
+/* 保存成功：果冻弹一下 */
+.save.is-saved {
+  animation: save-pop .5s var(--jelly);
+}
+
+@keyframes save-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.1, .9); }
+  70%  { transform: scale(.96, 1.05); }
+  100% { transform: scale(1); }
+}
+
+/* 次要按钮「表情记录」：白底黑框，和实心的「保存」拉开主次。
+   放在 .save 的规则之后，同权重下才能覆盖掉它的黑底 */
+.save--ghost {
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--line) solid var(--ink);
+  filter: drop-shadow(7px 7px 0 var(--ink-12));
+}
+
+.save--ghost:hover {
+  filter: drop-shadow(11px 11px 0 var(--ink-16));
+}
+
+.save--ghost:active {
+  filter: drop-shadow(0 0 0 var(--ink-16));
+}
+
+/* ---------- 油漆桶调色盘 ---------- */
+.palette {
+  position: relative;           /* 色板以它为锚点向上弹 */
+}
+
+.palette__btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: .2em;
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--line) solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink-12);
+  transition: transform .25s var(--jelly), box-shadow .25s var(--jelly);
+}
+
+.palette__btn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 var(--ink-16);
+}
+
+.palette__btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: 2px 2px 0 var(--ink-12);
+}
+
+/* 按钮里的小色标：永远是当前选中的颜色 */
+.palette__pip {
+  width: 16px;
+  height: 16px;
+  background: var(--ink);
+  border: 2px solid var(--ink);
+  transition: background .2s ease;
+}
+
+/* 弹出的色板。默认是「透明 + 缩一点 + 不接指针」而不是 display: none，
+   这样展开收起都能走过渡，不会啪地一下出现 */
+.palette__panel {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--px2));
+  display: grid;
+  grid-template-columns: repeat(3, 32px);
+  gap: 10px;
+  padding: 12px;
+  background: var(--paper);
+  border: var(--line) solid var(--ink);
+  box-shadow: 8px 8px 0 var(--ink-12);
+  opacity: 0;
+  transform: translateY(10px) scale(.9);
+  transform-origin: left bottom;
+  pointer-events: none;
+  transition: opacity .2s ease, transform .3s var(--jelly);
+}
+
+.palette.is-open .palette__panel {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* 色块 */
+.swatch {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 4px solid var(--ink-16);
+  transition: transform .2s var(--jelly), border-color .2s ease;
+}
+
+.swatch:hover {
+  transform: translate(-2px, -2px);
+  border-color: var(--ink-40);
+}
+
+/* 选中：外面再套一层「白 + 黑」描边，
+   黑白黄粉什么颜色当底都看得见 */
+.swatch.is-on {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink);
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 56px;
+  z-index: 500;
+  padding: 12px 28px;
+  font-size: 12px;
+  letter-spacing: .2em;
+  color: var(--paper);
+  background: var(--ink);
+  transform: translate(-50%, 20px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform .4s var(--jelly), opacity .3s ease;
+}
+
+.toast.is-on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* =========================================================
+   表情记录弹窗
+   ---------------------------------------------------------
+   默认是「透明 + 缩一点 + 不接指针」而不是 display: none，
+   展开收起都能走果冻过渡，不会啪地一下弹出来。
+   ========================================================= */
+.records {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6vw;
+  background: var(--ink-40);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .22s ease;
+}
+
+.records.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 面板：白底黑框 + 硬阴影，和站内其他卡片同一套景深 */
+.records__box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--px3);
+  width: min(560px, 100%);
+  max-height: 80vh;
+  padding: var(--px4) var(--px3) var(--px6);
+  background: var(--paper);
+  border: var(--line) solid var(--ink);
+  box-shadow: 12px 12px 0 var(--ink-24);
+  opacity: 0;
+  transform: translateY(18px) scale(.94);
+  transition: transform .34s var(--jelly), opacity .22s ease;
+}
+
+.records.is-open .records__box {
+  opacity: 1;
+  transform: none;
+}
+
+.records__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--px2);
+}
+
+.records__title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .22em;
+}
+
+/* 关闭 / 删除：同一套小号按钮 */
+.records__close,
+.record__del {
+  padding: 8px 16px;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: .16em;
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--line) solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink-12);
+  transition: transform .2s var(--jelly), box-shadow .2s var(--jelly);
+}
+
+.records__close:hover,
+.record__del:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--ink-24);
+}
+
+.records__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--px2);
+  padding: 4px;
+  overflow-y: auto;
+}
+
+.record {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 整张缩略图就是载入按钮 */
+.record__open {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--line) solid var(--ink-16);
+  transition: transform .24s var(--jelly), border-color .2s ease,
+              box-shadow .24s var(--jelly);
+}
+
+.record__open:hover {
+  transform: translate(-2px, -2px);
+  border-color: var(--ink);
+  box-shadow: 6px 6px 0 var(--ink-12);
+}
+
+/* 缩略图是 canvas 的自然尺寸，不额外缩放，像素不糊 */
+.record__thumb {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.record__time {
+  font-size: 10px;
+  letter-spacing: .12em;
+  color: var(--ink-40);
+}
+
+.records__empty {
+  display: none;
+  padding: var(--px3) 0;
+  font-size: 11px;
+  line-height: 2;
+  letter-spacing: .14em;
+  color: var(--ink-40);
+  text-align: center;
+}
+
+.records__empty.is-on {
+  display: block;
+}
+
+/* =========================================================
+   响应式：窄屏改成上下布局
+   ========================================================= */
+@media (max-width: 900px) {
+  .studio {
+    grid-template-columns: 1fr;
+    padding-bottom: 48px;
+  }
+
+  /* 窄屏下配件栏折到下方，人脸不再受它的宽度约束，
+     改成按屏幕宽度和高度取小即可（同步收一点，和桌面端比例一致） */
+  .face-ball {
+    --size: min(70vw, 42vh, 430px);
+  }
+
+  /* 窄屏四个工具按钮会折成两行，顶部多留一点，别压到人脸 */
+  .stage {
+    height: auto;
+    padding: 200px 0 48px;
+  }
+
+  /* 窄屏折到下方：不再需要整屏高和滚动，让页面自己滚 */
+  .tray {
+    height: auto;
+    overflow: visible;
+    border-left: 0;
+    border-top: var(--line) solid var(--ink-08);
+  }
+
+  .tray__inner {
+    min-height: 0;
+    padding: var(--px6) 6vw;
+    justify-content: flex-start;
+  }
+
+  .tray__list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  /* 窄屏：保存和调色盘回到文档流里，跟着页面滚 */
+  .dock {
+    position: static;
+    margin: 0 6vw var(--px6);
+    flex-wrap: wrap;
+  }
+
+  .studio__hint {
+    top: var(--px4);
+    left: 6vw;
+  }
+
+  .studio__tip {
+    max-width: 78vw;
+    line-height: 1.8;
+  }
+
+  /* 窄屏：记录弹窗改成两列，别把屏幕贴满 */
+  .records {
+    padding: var(--px3);
+  }
+
+  .records__box {
+    padding: var(--px3) var(--px2) var(--px4);
+    box-shadow: 8px 8px 0 var(--ink-24);
+  }
+
+  .records__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>击碎消极情绪 · 情绪像素球</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- 六种情绪球的形状：和 P3 弹窗、P4 海报共用同一份，不另写一套 -->
+  <link rel="stylesheet" href="css/mood.css" />
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body class="page-game">
+
+  <!-- ==================== 顶部计分 ==================== -->
+  <header class="ghud">
+    <div class="ghud__left">
+      <a class="ghud__back" href="index.html">&larr; BACK</a>
+      <p class="ghud__tip">击碎你的消极情绪吧！</p>
+    </div>
+
+    <div class="ghud__stats">
+      <span class="ghud__item">击碎 <b id="statHits">0</b> / 30</span>
+      <span class="ghud__item ghud__item--warn">失误 <b id="statErr">0</b></span>
+      <span class="ghud__item ghud__item--warn">漏掉消极球 <b id="statMiss">0</b> / 5</span>
+    </div>
+  </header>
+
+  <!-- 进度条 -->
+  <div class="gbar"><i class="gbar__fill" id="gbarFill"></i></div>
+
+  <!-- ==================== 舞台 ====================
+       球不再画在 canvas 上：每颗都是一个 .gball，里面装
+       Mood.ballHTML(id) 拼出来的情绪球（样式在 css/mood.css） -->
+  <main class="gstage" id="gstage">
+    <div class="gfield" id="gfield"></div>
+  </main>
+
+  <!-- 误点积极球时的全屏红闪 -->
+  <div class="gflash" id="gflash" aria-hidden="true"></div>
+
+  <!-- ==================== 开始画面 ==================== -->
+  <div class="goverlay" id="startScreen">
+    <div class="gcard">
+      <p class="gcard__tag">EMOTION SMASH</p>
+      <h1 class="gcard__title">击碎消极情绪</h1>
+
+      <p class="gcard__desc">
+        点掉落的消极情绪球：哭泣 · 愤怒 · 心累。<br />
+        别碰平静 / 开心 / 心动 —— 点到就算失误。<br />
+        击碎 30 个就赢，漏掉 5 个消极球就输。
+      </p>
+
+      <ul class="gcard__legend">
+        <li><i class="pin pin--blue"></i>哭泣</li>
+        <li><i class="pin pin--red"></i>愤怒</li>
+        <li><i class="pin pin--gray"></i>心累</li>
+        <li><i class="pin pin--green"></i>平静 · 别点</li>
+        <li><i class="pin pin--orange"></i>开心 · 别点</li>
+        <li><i class="pin pin--pink"></i>心动 · 别点</li>
+      </ul>
+
+      <button class="gbtn gbtn--solid" id="startBtn" type="button">开始游戏</button>
+    </div>
+  </div>
+
+  <!-- ==================== 胜利画面 ==================== -->
+  <div class="goverlay" id="winScreen" hidden>
+    <div class="gcard">
+      <p class="gcard__tag">GAME CLEAR</p>
+      <h2 class="gcard__title">全都击碎了</h2>
+      <p class="gcard__desc" id="winDesc">你击碎了 30 个消极情绪球。</p>
+      <p class="gcard__stats" id="winStats">失误 0 次 · 漏掉 0 个</p>
+
+      <div class="gcard__actions">
+        <button class="gbtn gbtn--solid" id="againBtn" type="button">再玩一次</button>
+        <a class="gbtn" href="index.html">回到首页</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 失败画面 ==================== -->
+  <div class="goverlay" id="loseScreen" hidden>
+    <div class="gcard">
+      <p class="gcard__tag">GAME OVER</p>
+      <h2 class="gcard__title">失败</h2>
+      <p class="gcard__desc">被消极情绪吞噬了...</p>
+      <p class="gcard__stats" id="loseStats">击碎 0 个 · 失误 0 次 · 漏掉 5 个</p>
+
+      <div class="gcard__actions">
+        <button class="gbtn gbtn--solid" id="retryBtn" type="button">再来一次</button>
+        <a class="gbtn" href="index.html">回到首页</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 情绪球模块必须在 game.js 之前 -->
+  <script src="js/mood.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

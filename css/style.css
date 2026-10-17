@@ -1,0 +1,925 @@
+/* =========================================================
+   情绪像素块 · 全局视觉规范
+   - 纯白背景 / 黑白主色 / 像素等宽字体
+   - 所有图形纯 CSS 绘制，无图片、无第三方库
+   - 果冻弹性 + 硬阴影景深 + 自定义像素光标
+   ========================================================= */
+
+/* =========================================================
+   中文像素字体 · 只给主标题用
+   Zpix by SolidZORO · SIL OFL 1.1
+   https://github.com/SolidZORO/zpix-pixel-font
+   ---------------------------------------------------------
+   字体文件已随项目放在 fonts/Zpix.ttf，本地读盘是毫秒级，
+   不再受 CDN 速度影响（原来那条 4.5MB 的远程 TTF，首屏往往
+   还没来得及下载完，标题已经用回退字体画出来了）。
+   后面再挂一条 jsDelivr 兜底：万一本地文件被挪走或删掉，
+   浏览器会自动去取远程那份。
+   ========================================================= */
+@font-face {
+  font-family: "Zpix";
+  src: url("../fonts/Zpix.ttf") format("truetype"),
+       url("https://cdn.jsdelivr.net/gh/SolidZORO/zpix-pixel-font@3.1.1/dist/Zpix.ttf")
+       format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  /* 只声明标题真正用到的那 5 个汉字（情 绪 像 素 块）。
+     其他字不匹配这条规则，也就不会用到这个字体。
+     想让整站中文都变像素风，把它换成 U+4E00-9FFF 即可 */
+  unicode-range: U+60C5, U+7EEA, U+50CF, U+7D20, U+5757;
+}
+
+/* ---------- 0. 设计变量 ---------- */
+:root {
+  /* 色板：只有黑与白，中间用透明度做灰阶 */
+  --paper:   #ffffff;
+  --ink:     #000000;
+  --ink-90:  rgba(0, 0, 0, .90);
+  --ink-64:  rgba(0, 0, 0, .64);
+  --ink-40:  rgba(0, 0, 0, .40);
+  --ink-24:  rgba(0, 0, 0, .24);
+  --ink-16:  rgba(0, 0, 0, .16);
+  --ink-12:  rgba(0, 0, 0, .12);
+  --ink-08:  rgba(0, 0, 0, .08);
+  --ink-05:  rgba(0, 0, 0, .05);
+
+  /* 像素栅格：一切尺寸都是 8 的倍数 */
+  --px:  8px;
+  --px2: 16px;
+  --px3: 24px;
+  --px4: 32px;
+  --px6: 48px;
+  --px8: 64px;
+  --line: 4px;          /* 像素描边宽度 */
+
+  /* 像素字体：英文走 Press Start 2P（不含中文字形），
+     中文自动回退到 ZCOOL QingKe HuangYou；
+     两者都没加载出来时再退回系统等宽 */
+  --font-pixel: "Press Start 2P", "ZCOOL QingKe HuangYou",
+                "Courier New", "Microsoft YaHei", "PingFang SC", monospace;
+
+  /* 像素字距：所有文字统一 2px */
+  --pixel-tracking: 2px;
+
+  /* 动效曲线 */
+  --jelly: cubic-bezier(.34, 1.56, .64, 1);   /* 果冻回弹（带过冲） */
+  --fall:  cubic-bezier(.55, 0, .45, 1);      /* 匀加速下落 */
+
+  /* 自定义黑色像素光标（内联 SVG，18x24，热区左上角） */
+  --cursor-pixel:
+    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='18'%20height='24'%20shape-rendering='crispEdges'%3E%3Cpath%20d='M0%200L0%2018L6%2012L9%2021L12%2018L9%209L15%209Z'%20fill='%23000000'/%3E%3C/svg%3E")
+    0 0, auto;
+}
+
+/* ---------- 1. 基础重置 ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  cursor: inherit;              /* 全站统一像素光标 */
+}
+
+html {
+  scroll-behavior: smooth;
+  cursor: var(--cursor-pixel);
+  /* 页面底色挂在 html 上。背景 canvas 是 z-index:-1，
+     如果 body 还有不透明背景，会把它整个盖住看不见 */
+  background: var(--paper);
+}
+
+body {
+  margin: 0;
+  /* 让出层级给 #jelly-bg，背景色由 html 承担 */
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-pixel);
+  font-size: 16px;
+  line-height: 1.6;
+  letter-spacing: var(--pixel-tracking);   /* 全站统一 2px 像素字距 */
+  overflow-x: hidden;
+  /* 文字要“硬”，真正起作用的是这两行（关掉抗锯齿）；
+     image-rendering 只影响位图缩放，对文字本身无效果，加在这里是备位图用 */
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  image-rendering: pixelated;
+}
+
+h1, h2, h3, p { margin: 0; }
+
+/* Press Start 2P / ZCOOL QingKe HuangYou 都只有 400 一个字重，
+   声明 700 会让浏览器做合成粗体（边缘发糊），所以统一压回 400 */
+h1, h2, h3, b, strong { font-weight: 400; }
+
+a { color: inherit; text-decoration: none; }
+
+::selection { background: var(--ink); color: var(--paper); }
+
+/* 键盘可访问性：像素方块焦点框 */
+:focus-visible {
+  outline: var(--line) dashed var(--ink);
+  outline-offset: 6px;
+}
+
+/* =========================================================
+  1.5 第一屏容器：果冻球只在这里活动（js/jellyball-bg.js）
+  ---------------------------------------------------------
+  高度锁死一屏 + overflow:hidden，多出来的球直接被裁掉，
+  所以往下滚只看到第二、三屏原本的内容。
+  isolation 让 canvas(0) 与文字(1) 的层级只在屏内比较，
+  不会跑去和页面其他区块抢层级。
+  ========================================================= */
+#hero-section {
+  position: relative;     /* canvas / 导航的定位基准 */
+  width: 100%;
+  height: 100vh;          /* 正好一屏 */
+  overflow: hidden;       /* 关掉溢出：球不会漏到第二屏 */
+  isolation: isolate;
+}
+
+/* p5 软体物理果冻球（js/jellyball-bg.js）
+   宽高由 JS 按 #hero-section 同步为 inline 样式，这里只管摆放。
+   选择器同时写 #hero-section canvas 是道保险：万一 p5 的 id 没设上，
+   这块画布也绝不会抢走鼠标事件 */
+#jelly-bg,
+#hero-section canvas {
+  position: absolute;     /* 相对 #hero-section，不再是整个视口 */
+  top: 0;
+  left: 0;
+  z-index: 0;             /* 垫在标题 / 按钮 / 导航之下 */
+  pointer-events: none;   /* 关键：不抢鼠标，底下的按钮才点得到 */
+  display: block;
+}
+
+/* =========================================================
+   2. 导航（第一屏右上角，随第一屏滚走）
+   ========================================================= */
+.nav {
+  /* 原来是 fixed（全站吸顶）。现在导航属于第一屏容器，
+     改成 absolute 相对 #hero-section 定位，随第一屏一起滚走 */
+  position: absolute;
+  top: var(--px4);
+  right: var(--px6);
+  z-index: 2;                        /* 必须高于 .hero(1)：.hero 铺满整屏会截走点击 */
+  display: flex;
+  gap: var(--px4);
+  align-items: center;
+  padding: var(--px) var(--px);
+  background: var(--paper);          /* 白底，压住底下的果冻球 */
+}
+
+.nav__item {
+  position: relative;
+  /* 右上角导航：纯英文，走 Press Start 2P */
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: var(--pixel-tracking);
+  white-space: nowrap;
+  padding-bottom: 8px;
+  opacity: .68;
+  transition: opacity .2s var(--jelly);
+}
+
+/* hover 时从下往上长出一条像素下划线 */
+.nav__item::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  background: var(--ink);
+  transition: height .22s var(--jelly);
+}
+
+.nav__item:hover {
+  opacity: 1;
+}
+
+.nav__item:hover::after {
+  height: var(--line);
+}
+
+/* =========================================================
+   3. 区域一 · HERO
+   ========================================================= */
+.hero {
+  position: relative;
+  z-index: 1;                       /* 整块内容压在 canvas(0) 之上，文字和按钮不被球挡 */
+  isolation: isolate;               /* 内部独立层叠上下文：标题 z-index:2 只在屏内比较 */
+  min-height: 100vh;
+  padding: 0 8vw 5vh;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+}
+
+/* 3.1 球的舞台 */
+.hero__stage {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------
+   3.3 像素球本体
+   一个 8x8 的像素圆（64×64），全部用 box-shadow 点阵绘制，
+   颜色用半透明黑，堆叠时自然产生深浅层次。
+   --------------------------------------------------------- */
+.ball {
+  --c: var(--ink-12);      /* 球体颜色 */
+  --dur: 2.8s;             /* 单次下落循环时长 */
+  --delay: 0s;             /* 相位延迟，避免同步 */
+  --scale: 1;              /* 尺寸倍率 */
+
+  position: absolute;
+  bottom: 11vh;            /* 球底贴着地面线 */
+  left: var(--x, 50%);
+  width: 64px;
+  height: 64px;
+  background: transparent;
+  transform-origin: 50% 100%;   /* 以底部为锚点压扁，像真的砸在地上 */
+
+  box-shadow:
+    /* row 0  (y = 0)  */
+    16px 0 0 var(--c), 24px 0 0 var(--c), 32px 0 0 var(--c), 40px 0 0 var(--c),
+    /* row 1  (y = 8)  */
+    8px 8px 0 var(--c), 16px 8px 0 var(--c), 24px 8px 0 var(--c),
+    32px 8px 0 var(--c), 40px 8px 0 var(--c), 48px 8px 0 var(--c),
+    /* row 2  (y = 16) */
+    0 16px 0 var(--c), 8px 16px 0 var(--c), 16px 16px 0 var(--c), 24px 16px 0 var(--c),
+    32px 16px 0 var(--c), 40px 16px 0 var(--c), 48px 16px 0 var(--c), 56px 16px 0 var(--c),
+    /* row 3  (y = 24) */
+    0 24px 0 var(--c), 8px 24px 0 var(--c), 16px 24px 0 var(--c), 24px 24px 0 var(--c),
+    32px 24px 0 var(--c), 40px 24px 0 var(--c), 48px 24px 0 var(--c), 56px 24px 0 var(--c),
+    /* row 4  (y = 32) */
+    0 32px 0 var(--c), 8px 32px 0 var(--c), 16px 32px 0 var(--c), 24px 32px 0 var(--c),
+    32px 32px 0 var(--c), 40px 32px 0 var(--c), 48px 32px 0 var(--c), 56px 32px 0 var(--c),
+    /* row 5  (y = 40) */
+    0 40px 0 var(--c), 8px 40px 0 var(--c), 16px 40px 0 var(--c), 24px 40px 0 var(--c),
+    32px 40px 0 var(--c), 40px 40px 0 var(--c), 48px 40px 0 var(--c), 56px 40px 0 var(--c),
+    /* row 6  (y = 48) */
+    8px 48px 0 var(--c), 16px 48px 0 var(--c), 24px 48px 0 var(--c),
+    32px 48px 0 var(--c), 40px 48px 0 var(--c), 48px 48px 0 var(--c),
+    /* row 7  (y = 56) */
+    16px 56px 0 var(--c), 24px 56px 0 var(--c), 32px 56px 0 var(--c), 40px 56px 0 var(--c);
+
+  animation: jelly-drop var(--dur) var(--delay) infinite;
+  will-change: transform;
+}
+
+/* 五颗球：不同大小 / 位置 / 节奏，形成景深与错落感 */
+.ball--1 { --x: 10%; --dur: 2.4s; --delay: 0s;   --scale: 1.00; --c: rgba(0,0,0,.10); }
+.ball--2 { --x: 26%; --dur: 3.1s; --delay: .7s;  --scale: .62;  --c: rgba(0,0,0,.16); }
+.ball--3 { --x: 43%; --dur: 2.8s; --delay: 1.3s; --scale: .44;  --c: rgba(0,0,0,.08); }
+.ball--4 { --x: 64%; --dur: 3.4s; --delay: .35s; --scale: .80;  --c: rgba(0,0,0,.13); }
+.ball--5 { --x: 86%; --dur: 2.6s; --delay: 1.7s; --scale: .54;  --c: rgba(0,0,0,.18); }
+
+/* 果冻下落：加速落下 → 触地压扁 → 弹起拉伸 → 二次落地 → 静止 */
+@keyframes jelly-drop {
+  0% {
+    transform: translateY(-92vh) scale(var(--scale));
+    opacity: 0;
+    animation-timing-function: var(--fall);
+  }
+  5%  { opacity: 1; }
+  50% {
+    transform: translateY(0) scale(var(--scale));
+    animation-timing-function: cubic-bezier(.2, 0, .4, 1);
+  }
+  /* 触地挤压 */
+  57% {
+    transform: translateY(0)
+               scale(calc(var(--scale) * 1.40), calc(var(--scale) * .58));
+    animation-timing-function: cubic-bezier(.2, 0, .4, 1);
+  }
+  /* 回弹拉长 */
+  71% {
+    transform: translateY(-20vh)
+               scale(calc(var(--scale) * .94), calc(var(--scale) * 1.10));
+    animation-timing-function: var(--fall);
+  }
+  /* 二次落地，幅度更小 */
+  83% {
+    transform: translateY(0)
+               scale(calc(var(--scale) * 1.16), calc(var(--scale) * .86));
+    animation-timing-function: cubic-bezier(.2, 0, .4, 1);
+  }
+  91% {
+    transform: translateY(-4vh) scale(var(--scale));
+    animation-timing-function: var(--fall);
+  }
+  96%  { opacity: 1; }
+  100% {
+    transform: translateY(0) scale(var(--scale));
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------
+   3.4 标题（左中）
+   --------------------------------------------------------- */
+.hero__title {
+  position: relative;
+  z-index: 2;
+  align-self: center;
+  justify-self: start;
+
+  /* 中文走 Zpix 像素点阵字体，取不到时按顺序回退：
+     站酷庆科黄油体 → 微软雅黑 → 系统无衬线 */
+  font-family: "Zpix", "ZCOOL QingKe HuangYou", "Microsoft YaHei", sans-serif;
+  font-size: clamp(2.75rem, 8vw, 6.5rem);
+  /* 像素字体只提供 400 这一个字重。写 700 / 900 会让浏览器去做
+     「合成粗体」（把笔画横向插值加粗），边缘立刻发糊，点阵感全毁。
+     font-synthesis: none 直接禁掉这次合成，400 才是最锐利的状态 */
+  font-weight: 400;
+  font-synthesis: none;
+  line-height: 1.14;                 /* 中文字体需要更松的行高，两行才不挤 */
+  letter-spacing: 2px;
+  image-rendering: pixelated;        /* 对矢量文字无效，留作位图回退用 */
+
+  /* 关掉抗锯齿：像素字的每根笔画都是硬边，
+     开了平滑会在边缘抹出一层灰，颗粒感就散了 */
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+
+  /* 多层硬阴影 = 像素景深。
+     第 3 个值 blur = 0，是硬边实心阴影，只往右下印一块灰，
+     不会让字本身发虚，所以留着；
+     想更干净就把这两行删掉 */
+  text-shadow:
+    6px 6px 0 var(--ink-12),
+    12px 12px 0 var(--ink-05);
+
+  /* -------------------------------------------------------
+     兜底写法：如果哪天 Zpix 彻底取不到、只能用微软雅黑渲染，
+     把下面两行的注释去掉，字会方正硬朗很多。
+     切勿在 Zpix 正常生效时启用 —— 900 会让像素字被合成加粗而发糊。
+  font-weight: 900;
+  text-shadow: none;
+     ------------------------------------------------------- */
+}
+
+/* ---------------------------------------------------------
+   3.5 底部 ENTER 按钮
+   --------------------------------------------------------- */
+.hero__enter {
+  position: relative;
+  z-index: 2;
+  justify-self: center;
+  text-align: center;
+  padding-bottom: 4vh;
+}
+
+.btn-pixel {
+  --notch: 8px;                     /* 像素圆角切角大小 */
+  display: inline-block;
+  /* 显式抬层级 + 强制可点：
+     .hero 是铺满整屏的 grid 容器（z-index:1），按钮若落在它的
+     层叠之下就永远收不到点击。这两行是最后一道保险 */
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
+  padding: 18px 48px;
+  /* ENTER 按钮：纯英文，走 Press Start 2P */
+  font-family: var(--font-pixel);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: var(--pixel-tracking);
+  text-indent: var(--pixel-tracking);  /* 抵消尾部字距，文字视觉居中 */
+  color: var(--paper);
+  background: var(--ink);
+  border: 0;
+  /* 四个角各切掉一个方块 → 8-bit 圆角 */
+  clip-path: polygon(
+    0 var(--notch), var(--notch) var(--notch), var(--notch) 0,
+    calc(100% - var(--notch)) 0,
+    calc(100% - var(--notch)) var(--notch), 100% var(--notch),
+    100% calc(100% - var(--notch)),
+    calc(100% - var(--notch)) calc(100% - var(--notch)),
+    calc(100% - var(--notch)) 100%,
+    var(--notch) 100%,
+    var(--notch) calc(100% - var(--notch)), 0 calc(100% - var(--notch))
+  );
+  /* clip-path 会裁掉 box-shadow，所以用 drop-shadow 做景深 */
+  filter: drop-shadow(8px 8px 0 var(--ink-24));
+  transition: transform .28s var(--jelly), filter .28s var(--jelly);
+}
+
+.btn-pixel:hover {
+  transform: translate(-3px, -3px);
+  filter: drop-shadow(13px 13px 0 var(--ink-24));
+}
+
+/* 按下：整体沉下去，像被按进了纸面 */
+.btn-pixel:active {
+  transform: translate(6px, 6px);
+  filter: drop-shadow(0 0 0 var(--ink-24));
+  transition-duration: .08s;
+}
+
+.hero__hint {
+  margin-top: var(--px3);
+  font-size: 11px;
+  letter-spacing: .3em;
+  color: var(--ink-40);
+  animation: hint-blink 2.4s steps(1, end) infinite;
+}
+
+@keyframes hint-blink {
+  0%, 60%   { opacity: 1; }
+  61%, 100% { opacity: .25; }
+}
+
+/* =========================================================
+   4. 通用区块
+   ========================================================= */
+.section {
+  padding: 14vh 8vw;
+}
+
+.section__head {
+  margin-bottom: var(--px6);
+}
+
+.section__title {
+  font-size: clamp(1.6rem, 3.4vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-shadow: 4px 4px 0 var(--ink-08);
+}
+
+.section__sub {
+  margin-top: var(--px2);
+  font-size: 11px;
+  letter-spacing: .26em;
+  color: var(--ink-40);
+}
+
+/* =========================================================
+   5. 区域二 · 情绪卡牌无缝滚动带
+   ---------------------------------------------------------
+   轨道里是两组一模一样的大组（每组 14 张 = 7 张卡牌走两轮），
+   靠 translateX(-50%) 循环左移。
+   注意轨道末尾补了一个 gap 宽的右内边距：这样轨道总宽正好是
+   「一个大组 + 组间 gap」的两倍，-50% 才刚好落在大组的接缝上，
+   接缝处也只有一个 gap；少了这一下，每轮循环会跳半个间距。
+   ========================================================= */
+.cards-rail {
+  position: relative;
+  /* 这里千万别写 width: 100%：
+     100% = 父容器内容宽（.section 左右 padding 8vw 后的 84vw），
+     再配 margin: 0 -8vw 只会把整块往左挪，右边缘停在 84vw，
+     右边正好空出 16vw 的白 —— 之前那块白就是这么来的。
+     块级元素留 auto，负边距才会把宽度撑到正好 100vw */
+  width: auto;
+  margin: 0 -8vw;
+  overflow: hidden;          /* 只露视口内一条，其余裁掉 */
+  padding: var(--px4) 0 var(--px6);
+}
+
+.cards-track {
+  display: flex;
+  flex-wrap: nowrap;         /* 绝不换行，永远排成一条长带 */
+  gap: 20px;
+  width: max-content;
+  /* 末尾补上一个 gap：轨道总宽 = 2 ×（大组宽 + 一个 gap），
+     -50% 才精确落在大组的接缝上，接缝处也只有一个 gap */
+  padding-right: 20px;
+  animation: cards-scroll 25s linear infinite;
+  will-change: transform;
+}
+
+@keyframes cards-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* 鼠标停到卡牌上就暂停，能看清内容；移开继续滚 */
+.cards-track:hover {
+  animation-play-state: paused;
+}
+
+/* 卡牌：高度固定 300px，宽度按图片比例自适应。
+   黑色像素描边 + 右下硬阴影，和全站的方块语言一致 */
+.cards-track__img {
+  display: block;
+  flex: none;
+  height: 300px;
+  width: auto;
+  background: var(--paper);
+  border: var(--line) solid var(--ink);
+  box-shadow: 10px 10px 0 var(--ink-12);
+  transition: transform .3s var(--jelly), box-shadow .3s var(--jelly);
+}
+
+/* 悬停时微微抬起（只动 transform，不会打断横向滚动） */
+.cards-track__img:hover {
+  transform: translate(-4px, -8px);
+  box-shadow: 16px 18px 0 var(--ink-16);
+}
+
+/* 原来的静态卡牌（.card / .face 系列）已整体移除，
+   区域二现在直接用真实图片的滚动带，样式见上面第 5 节 */
+
+/* =========================================================
+   6. 区域三 · 情绪系列（三张拍立得）
+   ---------------------------------------------------------
+   一张卡 = 白卡面 + 黑像素描边 + 深灰硬阴影。
+   三张各自歪一点（-3° / 2° / -2°）形成叠放感；
+   悬停或键盘聚焦时回正并微微放大，压到相邻的卡上面。
+   ========================================================= */
+.entries {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: clamp(20px, 4vw, 56px);
+  padding: var(--px4) 0 var(--px2);
+}
+
+.entry {
+  --rot: 0deg;
+  position: relative;
+  display: block;
+  flex: 0 1 320px;
+  min-width: 200px;
+  max-width: 340px;
+  aspect-ratio: 3 / 4;          /* 竖版拍立得 */
+  padding: 10px;                /* 卡面白边 */
+  background: var(--paper);
+  border: var(--line) solid var(--ink);
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, .1);
+  transform: rotate(var(--rot));
+  transition: transform .34s var(--jelly), box-shadow .34s var(--jelly);
+}
+
+/* 三张各自歪一点，错落摆开 */
+.entry:nth-child(1) { --rot: -3deg; }
+.entry:nth-child(2) { --rot: 2deg; }
+.entry:nth-child(3) { --rot: -2deg; }
+
+/* 悬停 / 键盘聚焦：回正 + 微微放大，阴影加深 */
+.entry:hover,
+.entry:focus-visible {
+  --rot: 0deg;
+  transform: rotate(var(--rot)) scale(1.045);
+  box-shadow: 12px 12px 0 rgba(0, 0, 0, .14);
+  z-index: 2;
+}
+
+/* 封面：铺满整张卡面，等比裁切 */
+.entry__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---------------------------------------------------------
+   6.1 卡片封面（P2 / GAME）
+   ---------------------------------------------------------
+   封面铺满卡面（.entry 内边距之内的 100% × 100%），全部纯 CSS 绘制。
+   ------------------------------------------------ */
+.cover {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+/* ---------- P2：笑脸 + 标题 + 配件格 ---------- */
+.cover--p2 {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+
+.cover__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 黄色像素大笑脸：黑粗边 + 黑眼睛 + 红嘴巴 + 粉脸蛋 */
+.smile {
+  position: relative;
+  flex: none;
+  width: 58px;
+  height: 58px;
+  background: #ffd93d;
+  border: 4px solid #000000;
+  border-radius: 10px;
+}
+
+.smile__eye {
+  position: absolute;
+  top: 15px;
+  width: 7px;
+  height: 7px;
+  background: #000000;
+}
+.smile__eye--l { left: 13px; }
+.smile__eye--r { right: 13px; }
+
+.smile__mouth {
+  position: absolute;
+  left: 50%;
+  top: 30px;
+  width: 24px;
+  height: 11px;
+  background: #ff3b3b;
+  transform: translateX(-50%);
+  border-radius: 0 0 12px 12px;
+}
+
+.smile__cheek {
+  position: absolute;
+  top: 31px;
+  width: 9px;
+  height: 5px;
+  background: #ffa8d8;
+  border-radius: 50%;
+}
+.smile__cheek--l { left: 4px; }
+.smile__cheek--r { right: 4px; }
+
+.cover__title {
+  font-size: 15px;
+  letter-spacing: .12em;
+  color: #000000;
+}
+
+/* 4 行 6 列的配件格 */
+.cover__grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 10px;
+  align-items: center;
+  justify-items: center;
+}
+
+.ico {
+  position: relative;
+  display: block;
+  width: 26px;
+  height: 26px;
+}
+
+/* 红爱心 */
+.ico--heart::before {
+  content: '';
+  position: absolute;
+  inset: 4% 0;
+  background: #ff3b3b;
+  clip-path: polygon(
+    0 34%, 16% 34%, 16% 12%, 38% 12%, 50% 34%,
+    62% 12%, 84% 12%, 84% 34%, 100% 34%,
+    100% 60%, 50% 100%, 0 60%
+  );
+}
+
+/* 蓝水滴 */
+.ico--drop::before {
+  content: '';
+  position: absolute;
+  left: 20%;
+  top: 26%;
+  width: 60%;
+  height: 60%;
+  background: #3aa0ff;
+  border-radius: 50%;
+}
+
+.ico--drop::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  width: 30%;
+  height: 30%;
+  background: #3aa0ff;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+/* 粉椭圆（腮红） */
+.ico--blush::before {
+  content: '';
+  position: absolute;
+  left: 4%;
+  top: 34%;
+  width: 92%;
+  height: 34%;
+  background: #ffa8d8;
+  border-radius: 50%;
+}
+
+/* 黑色魔术帽 */
+.ico--hat::before {
+  content: '';
+  position: absolute;
+  left: 30%;
+  top: 10%;
+  width: 40%;
+  height: 56%;
+  background: #000000;
+}
+
+.ico--hat::after {
+  content: '';
+  position: absolute;
+  left: 8%;
+  top: 62%;
+  width: 84%;
+  height: 16%;
+  background: #000000;
+}
+
+/* 黑色墨镜：两个镜片 + 中间鼻梁 */
+.ico--glasses {
+  background: linear-gradient(#000, #000) 50% 52% / 26% 3px no-repeat;
+}
+
+.ico--glasses::before,
+.ico--glasses::after {
+  content: '';
+  position: absolute;
+  top: 38%;
+  width: 34%;
+  height: 26%;
+  background: #000000;
+}
+
+.ico--glasses::before { left: 6%; }
+.ico--glasses::after { right: 6%; }
+
+/* 红色生气符号（一格 X） */
+.ico--anger::before,
+.ico--anger::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 74%;
+  height: 14%;
+  background: #ff3b3b;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.ico--anger::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+/* 油漆桶：桶身 + 提手 */
+.ico--bucket::before {
+  content: '';
+  position: absolute;
+  left: 16%;
+  top: 40%;
+  width: 68%;
+  height: 46%;
+  background: #333333;
+  border-radius: 0 0 16% 16%;
+}
+
+.ico--bucket::after {
+  content: '';
+  position: absolute;
+  left: 24%;
+  top: 12%;
+  width: 52%;
+  height: 28%;
+  border: 2px solid #333333;
+  border-bottom: 0;
+  border-radius: 50% 50% 0 0;
+}
+
+/* ---------- GAME：顶部 game 标题 + 散落的情绪球 ---------- */
+.cover--game {
+  padding: 0;
+}
+
+.cover__game-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 16px;
+  z-index: 2;
+  text-align: center;
+  font-size: 16px;
+  letter-spacing: .1em;
+  color: #000000;
+}
+
+.cover__balls {
+  position: absolute;
+  inset: 0;
+}
+
+/* 一颗小球：72px 的情绪球按 --s 缩小，left / top 指的是球心 */
+.cover-ball {
+  position: absolute;
+  width: 72px;
+  height: 72px;
+  transform: translate(-50%, -50%) scale(var(--s, .34));
+  pointer-events: none;
+}
+
+.cover-ball .mood {
+  display: block;
+}
+
+/* =========================================================
+   7. 页脚
+   ========================================================= */
+.foot {
+  display: flex;
+  align-items: center;
+  gap: var(--px2);
+  padding: var(--px6) 8vw 10vh;
+  font-size: 11px;
+  letter-spacing: .22em;
+  color: var(--ink-40);
+  border-top: var(--line) solid var(--ink-08);
+}
+
+.foot__dot {
+  width: var(--px);
+  height: var(--px);
+  background: var(--ink);
+  animation: dot-blink 1.8s steps(1, end) infinite;
+}
+
+@keyframes dot-blink {
+  0%, 50%   { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* =========================================================
+   8. 响应式
+   ========================================================= */
+/* Press Start 2P 是等宽像素字，同样字号下比常规字体宽不少，
+   所以导航需要提前一档收窄，免得在中等屏幕上挤到主标题 */
+@media (max-width: 1100px) {
+  .nav { gap: var(--px3); }
+  .nav__item { font-size: 10px; }
+}
+
+@media (max-width: 1000px) {
+  /* 窄屏改成竖排，倾斜角度减半，免得旋转后顶到屏幕边缘 */
+  .entries {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .entry {
+    flex: 0 0 auto;
+    width: min(320px, 78vw);
+  }
+
+  .entry:nth-child(1),
+  .entry:nth-child(3) { --rot: -1.5deg; }
+  .entry:nth-child(2) { --rot: 1deg; }
+}
+
+@media (max-width: 720px) {
+  .nav {
+    top: var(--px3);
+    right: var(--px3);
+    left: var(--px3);
+    gap: var(--px2);
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .nav__item { font-size: 10px; letter-spacing: var(--pixel-tracking); }
+
+  .hero { padding: 0 6vw 4vh; }
+  .hero__title { font-size: clamp(2.2rem, 13vw, 3.5rem); }
+
+  .section { padding: 10vh 6vw; }
+
+  .cards-rail { margin: 0 -6vw; }
+  .cards-track__img { height: 210px; }
+
+  .foot { padding: var(--px6) 6vw 8vh; }
+}
+
+/* =========================================================
+   9. 尊重「减少动态效果」偏好
+   ========================================================= */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}

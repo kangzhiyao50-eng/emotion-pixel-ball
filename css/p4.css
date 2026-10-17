@@ -1,0 +1,351 @@
+/* =========================================================
+   P4 · 情绪海报页
+   这里是整个项目唯一出现彩色的地方
+   ========================================================= */
+:root {
+  --pixel-circle: polygon(
+    25% 0%,       75% 0%,
+    75% 12.5%,    87.5% 12.5%,
+    87.5% 25%,    100% 25%,
+    100% 75%,     87.5% 75%,
+    87.5% 87.5%,  75% 87.5%,
+    75% 100%,     25% 100%,
+    25% 87.5%,    12.5% 87.5%,
+    12.5% 75%,    0% 75%,
+    0% 25%,       12.5% 25%,
+    12.5% 12.5%,  25% 12.5%
+  );
+}
+
+.page-poster {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--px6) var(--px3);
+  overflow-x: hidden;
+}
+
+/* =========================================================
+   1. 过渡：黑色糖球从右到左，把一排小糖球挨个吃掉
+   ========================================================= */
+.eater {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+.eater[hidden] { display: none; }
+
+/* 吃完后整层淡出 */
+.eater.is-done {
+  animation: eater-out .34s ease forwards;
+}
+
+@keyframes eater-out {
+  to { opacity: 0; visibility: hidden; }
+}
+
+.eater__track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 0;
+}
+
+/* 小糖球：像素圆 */
+.candy {
+  position: absolute;
+  top: 0;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+  background: var(--ink);
+  clip-path: var(--pixel-circle);
+}
+
+/* 被吃掉的瞬间：先鼓一下再缩没 */
+.candy.is-eaten {
+  animation: candy-eaten .32s var(--jelly) forwards;
+}
+
+@keyframes candy-eaten {
+  0%   { transform: translate(-50%, -50%) scale(1); }
+  40%  { transform: translate(-50%, -50%) scale(1.45); }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+}
+
+/* 吃糖球的黑球，点阵由 JS 生成 */
+.eater__mouth {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 112px;
+  height: 112px;
+  will-change: transform;
+}
+
+/* =========================================================
+   2. 海报舞台
+   ========================================================= */
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--px4);
+}
+
+.stage[hidden] { display: none; }
+
+/* wrap 的尺寸由 JS 按缩放比设定，保证布局不塌 */
+.poster-wrap {
+  position: relative;
+  width: 480px;
+  height: 640px;
+}
+
+/* 海报固定 480×640 逻辑尺寸，靠 scale 适配屏幕；
+   缩放以中心为原点，所以 wrap 的尺寸就等于缩放后的视觉尺寸 */
+.poster {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 480px;
+  height: 640px;
+  margin-left: -240px;
+  margin-top: -320px;
+  overflow: hidden;
+  background: var(--pbg, #ffe14d);
+  transform: scale(var(--pscale, 1));
+  transform-origin: center center;
+  transition: background-color .4s ease;
+  animation: poster-in .58s var(--jelly);
+}
+
+@keyframes poster-in {
+  0%   { opacity: 0; transform: scale(calc(var(--pscale, 1) * .84)); }
+  62%  { opacity: 1; transform: scale(calc(var(--pscale, 1) * 1.03)); }
+  100% { opacity: 1; transform: scale(var(--pscale, 1)); }
+}
+
+/* ---------------------------------------------------------
+   从上到下：折行的大字英文 → 浅灰小号中文 → 中心大表情 →
+             底部居中（日期 + 右侧紧挨的情绪小圆球）
+   --------------------------------------------------------- */
+
+/* 顶部文字块 */
+.poster__head {
+  position: absolute;
+  left: 48px;
+  right: 48px;
+  top: 48px;
+  z-index: 4;
+}
+
+/* 左上角：今日情绪的英文。
+   真正的像素英文字体（Press Start 2P），纯黑、保持大号。
+   换行策略：优先在单词边界断（HEART-FLUTTERING 会在连字符后折成
+   HEART- / FLUTTERING），只有整词实在放不下才按字符硬断 */
+.poster__emo {
+  font-family: "Press Start 2P", var(--font-pixel);
+  font-size: 36px;
+  font-weight: 400;
+  line-height: 1.24;
+  color: var(--ink);
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+/* 英文正下方：一句描述当前情绪的中文提示。
+   宋体（SimSun → 宋体-简 → 华文宋体 → serif），浅灰小字 ——
+   交代情绪，但不跟中心的大表情抢视线 */
+.poster__note {
+  margin-top: 16px;
+  font-family: "SimSun", "Songti SC", "STSong", serif;
+  font-size: 12px;
+  line-height: 1.7;
+  letter-spacing: .06em;
+  color: #999999;
+}
+
+/* ---------------------------------------------------------
+   中心：P2 捏出来、保存下来的那张表情
+   ---------------------------------------------------------
+   容器铺满整张海报（inset: 0），图片再按「海报自身的
+   90% 宽 × 60% 高」做上限 —— 脸的实体放到了海报宽的 65%，
+   但不管以后怎么调大，都绝对顶不出海报边界。
+   z-index 最高：彩色底和所有文字都必须待在它下面。
+   --------------------------------------------------------- */
+.poster__face {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* 中心图案：P2 导出/保存的那张透明 PNG（localStorage: savedEmotion）。
+   宽高由 JS 按图片真实像素算出来：P2 用 1 逻辑单位 = 4 像素导出，
+   所以 naturalWidth / 4 就是这张图在 240 基准里的逻辑大小，
+   再乘 FACE_ZOOM 把脸的实体撑到 65%。 */
+.pface__img {
+  position: absolute;
+  left: 50%;
+  top: 372px;                 /* 视觉中心略低于正中，给上面的文字留位 */
+  transform: translate(-50%, -50%);
+  max-width: 90%;             /* 边界：横向最多 432px */
+  max-height: 60%;            /* 边界：纵向最多 384px */
+  /* 这张图是 4 倍清晰度（1056px 级）缩到 65% 那一档，
+     用平滑缩放：形状和颜色才是原样，最近邻采样会掉格子、糊成一片 */
+  pointer-events: none;
+}
+
+/* 兜底：确实没有可用的表情数据时，只说明一句，绝不放初始表情 */
+.pface__none {
+  position: absolute;
+  left: 50%;
+  top: 372px;
+  width: 100%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  font-family: "SimSun", "Songti SC", "STSong", serif;
+  font-size: 12px;
+  line-height: 1.9;
+  letter-spacing: .06em;
+  color: #999999;
+}
+
+/* 底部「小记录印章」：日期 + 紧挨在右边的情绪小圆球。
+   两者同在一个 flex 行里，align-items 让它们的中线严格对齐，
+   整行水平居中 —— 看起来就是一个整体 */
+.poster__foot {
+  position: absolute;
+  left: 48px;
+  right: 48px;
+  bottom: 44px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  z-index: 4;
+}
+
+/* 日期：浅灰小字，走像素字（数字和点号在 Press Start 2P 里都有） */
+.poster__date {
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: .28em;
+  text-indent: .28em;         /* 补掉字距在行尾多出来的那一点 */
+  color: #999999;
+}
+
+/* 情绪小圆球（形状定义在 css/mood.css）：72px 整颗缩到 20px。
+   占位盒子就是 20×20，球从左上角缩进来，正好填满盒子、
+   中线与日期对齐，也不会顶到旁边的字 */
+.poster__ball {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.poster__ball .mood {
+  position: absolute;
+  left: 0;
+  top: 0;
+  /* 注意：这里必须写小数，CSS 的 scale() 不接受 "1 / 3" 这种算式
+     （写了会被整条丢弃，球就会保持 72px 原尺寸） */
+  transform: scale(.2778);    /* 72 × .2778 ≈ 20 */
+  transform-origin: top left;
+}
+
+/* =========================================================
+   3. 操作按钮
+   ========================================================= */
+.stage__actions {
+  display: flex;
+  gap: var(--px3);
+}
+
+.pbtn {
+  padding: 14px 36px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .24em;
+  text-indent: .24em;
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--line) solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink-12);
+  transition: transform .25s var(--jelly), box-shadow .25s var(--jelly);
+}
+
+.pbtn:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: 9px 9px 0 var(--ink-16);
+}
+
+.pbtn:active {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 var(--ink-12);
+}
+
+.pbtn--solid {
+  color: var(--paper);
+  background: var(--ink);
+  box-shadow: 6px 6px 0 var(--ink-24);
+}
+
+.stage__back {
+  font-size: 11px;
+  letter-spacing: .2em;
+  color: var(--ink-40);
+  transition: color .2s ease, letter-spacing .25s var(--jelly);
+}
+
+.stage__back:hover {
+  color: var(--ink);
+  letter-spacing: .3em;
+}
+
+/* =========================================================
+   4. 提示
+   ========================================================= */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 48px;
+  z-index: 500;
+  padding: 12px 28px;
+  font-size: 12px;
+  letter-spacing: .2em;
+  color: var(--paper);
+  background: var(--ink);
+  transform: translate(-50%, 20px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform .4s var(--jelly), opacity .3s ease;
+}
+
+.toast.is-on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* =========================================================
+   5. 响应式
+   ========================================================= */
+@media (max-width: 560px) {
+  .page-poster { padding: var(--px4) var(--px3); }
+
+  .stage__actions {
+    flex-direction: column;
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .pbtn { text-align: center; }
+}

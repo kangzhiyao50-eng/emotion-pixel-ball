@@ -1,0 +1,227 @@
+/* =========================================================
+   情绪球 · 共享样式
+   ---------------------------------------------------------
+   P3 弹窗里的 6 个情绪选项、P4 海报右上角的那颗小情绪球，
+   用的都是这一份 —— 形状只有一处定义，两边永远长得一样。
+   （依赖 style.css 里的 :root 变量，页面记得先引它）
+
+   圆底：border-radius: 50% + 一圈 inset 的黑色像素描边
+         （用 box-shadow 而不是 border，描边不会把尺寸撑大）。
+   表情：一个零件 = 一个 <i>，多出来的像素块靠 box-shadow 偏移复制，
+         一个像素块 6px，脸放在球心 48×48 的 8×8 格里
+         （左右各留 12px 边距，四角不画，正好压不到圆边）。
+   坐标换算：第 c 列 → left = 12 + 6c，第 r 行 → top = 12 + 6r。
+   每种情绪有哪些零件，写在 js/p3.js 的 MOOD_PARTS 里。
+   ========================================================= */
+.mood {
+  --mu: 6px;                        /* 一个像素块的边长 */
+  --mood-ink: #000000;              /* 表情线条颜色 */
+  position: relative;
+  display: block;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--mood-bg, var(--paper));
+  box-shadow: inset 0 0 0 4px var(--mood-ink);
+}
+
+.mood__px {
+  position: absolute;
+  width: var(--mu);
+  height: var(--mu);
+  background: var(--mood-ink);
+}
+
+/* ---------- 1. 平静 · 绿底 + 像素笑脸 ---------- */
+.mood--calm { --mood-bg: #3fcf5e; }
+
+.mood--calm .mood__px--eye-l { left: 24px; top: 24px; }        /* (2,2) */
+.mood--calm .mood__px--eye-r { left: 42px; top: 24px; }        /* (5,2) */
+
+/* 微笑：两端高、中间低的一道 ‿ */
+.mood--calm .mood__px--mouth {
+  left: 24px; top: 36px;                                       /* (2,4) */
+  box-shadow:
+    6px 6px 0 var(--mood-ink), 12px 6px 0 var(--mood-ink),
+    18px 0 0 var(--mood-ink);
+}
+
+/* ---------- 2. 哭泣 · 蓝底 + 八字眉 + 眼泪 ---------- */
+.mood--cry {
+  --mood-bg: #2f8fff;
+  --mood-tear: #cfeaff;             /* 蓝底上的泪要浅色才看得见 */
+}
+
+/* 八字眉：外端低、内端高 */
+.mood--cry .mood__px--brow-l {
+  left: 18px; top: 24px;                                       /* (1,2) */
+  box-shadow: 6px -6px 0 var(--mood-ink);                      /* (2,1) */
+}
+
+.mood--cry .mood__px--brow-r {
+  left: 48px; top: 24px;                                       /* (6,2) */
+  box-shadow: -6px -6px 0 var(--mood-ink);                     /* (5,1) */
+}
+
+.mood--cry .mood__px--eye-l { left: 24px; top: 30px; }         /* (2,3) */
+.mood--cry .mood__px--eye-r { left: 42px; top: 30px; }         /* (5,3) */
+
+/* 两滴泪：眼下一个 1×2 的浅蓝块 */
+.mood--cry .mood__px--tear-l,
+.mood--cry .mood__px--tear-r {
+  top: 36px;                                                   /* (·,4) */
+  background: var(--mood-tear);
+  box-shadow: 0 6px 0 var(--mood-tear);
+}
+
+.mood--cry .mood__px--tear-l { left: 18px; }                    /* (1,4) */
+.mood--cry .mood__px--tear-r { left: 48px; }                    /* (6,4) */
+
+/* 张开的方嘴：2×2 */
+.mood--cry .mood__px--mouth {
+  left: 30px; top: 42px;                                       /* (3,5) */
+  box-shadow:
+    6px 0 0 var(--mood-ink), 0 6px 0 var(--mood-ink),
+    6px 6px 0 var(--mood-ink);
+}
+
+/* ---------- 3. 开心 · 橙底 + 弯弯眼 + 张嘴吐舌 ---------- */
+.mood--happy {
+  --mood-bg: #ff9a3d;
+  --mood-tongue: #ff3b3b;
+}
+
+/* 弯弯眼：两道向上拱起的小弧 */
+.mood--happy .mood__px--eye-l {
+  left: 18px; top: 24px;                                       /* (1,2) */
+  box-shadow: 6px -6px 0 var(--mood-ink);                      /* (2,1) */
+}
+
+.mood--happy .mood__px--eye-r {
+  left: 48px; top: 24px;                                       /* (6,2) */
+  box-shadow: -6px -6px 0 var(--mood-ink);                     /* (5,1) */
+}
+
+/* 张开的嘴：4×2 的大方口 */
+.mood--happy .mood__px--mouth {
+  left: 24px; top: 36px;                                       /* (2,4) */
+  box-shadow:
+    6px 0 0 var(--mood-ink), 12px 0 0 var(--mood-ink), 18px 0 0 var(--mood-ink),
+    0 6px 0 var(--mood-ink), 6px 6px 0 var(--mood-ink),
+    12px 6px 0 var(--mood-ink), 18px 6px 0 var(--mood-ink);
+}
+
+/* 舌头：压在嘴的下排中间（DOM 顺序在嘴巴之后，天然盖在上面） */
+.mood--happy .mood__px--tongue {
+  left: 30px; top: 42px;                                       /* (3,5) */
+  background: var(--mood-tongue);
+  box-shadow: 6px 0 0 var(--mood-tongue);
+}
+
+/* ---------- 4. 愤怒 · 红底 + 倒八字眉 + 青筋 ---------- */
+.mood--angry {
+  --mood-bg: #ff3b3b;
+  --mood-vein: #7a0d0d;             /* 深红：纯红压红底会看不见 */
+}
+
+/* 倒八字眉：外端高、内端低（摆到最外圈，给中间的青筋让位） */
+.mood--angry .mood__px--brow-l {
+  left: 12px; top: 24px;                                       /* (0,2) */
+  box-shadow: 6px 6px 0 var(--mood-ink);                       /* (1,3) */
+}
+
+.mood--angry .mood__px--brow-r {
+  left: 54px; top: 24px;                                       /* (7,2) */
+  box-shadow: -6px 6px 0 var(--mood-ink);                      /* (6,3) */
+}
+
+/* 青筋：5 个块拼一个十字叉（中心 + 四角） */
+.mood--angry .mood__px--vein {
+  left: 36px; top: 18px;                                       /* (4,1) 中心 */
+  background: var(--mood-vein);
+  box-shadow:
+    -6px -6px 0 var(--mood-vein), 6px -6px 0 var(--mood-vein),
+    -6px 6px 0 var(--mood-vein), 6px 6px 0 var(--mood-vein);
+}
+
+.mood--angry .mood__px--eye-l { left: 24px; top: 36px; }        /* (2,4) */
+.mood--angry .mood__px--eye-r { left: 42px; top: 36px; }        /* (5,4) */
+
+/* 生气的嘴：中间高两端低的 ∩ */
+.mood--angry .mood__px--mouth {
+  left: 24px; top: 48px;                                       /* (2,6) */
+  box-shadow:
+    6px -6px 0 var(--mood-ink), 12px -6px 0 var(--mood-ink),
+    18px 0 0 var(--mood-ink);
+}
+
+/* ---------- 5. 心累 · 灰底 + 半眯眼 + 微斜的直线嘴 ---------- */
+.mood--tired { --mood-bg: #c4c4c4; }
+
+/* 半眯眼：两道横杠 */
+.mood--tired .mood__px--eye-l {
+  left: 18px; top: 30px;                                       /* (1,3) */
+  box-shadow: 6px 0 0 var(--mood-ink);                         /* (2,3) */
+}
+
+.mood--tired .mood__px--eye-r {
+  left: 42px; top: 30px;                                       /* (5,3) */
+  box-shadow: 6px 0 0 var(--mood-ink);                         /* (6,3) */
+}
+
+/* 一条往右上斜一格的直线嘴 */
+.mood--tired .mood__px--mouth {
+  left: 24px; top: 48px;                                       /* (2,6) */
+  box-shadow:
+    6px 0 0 var(--mood-ink),
+    12px -6px 0 var(--mood-ink), 18px -6px 0 var(--mood-ink);
+}
+
+/* ---------- 6. 心动 · 粉底 + 爱心眼 + 周围的小爱心 ---------- */
+.mood--heart {
+  --mood-bg: #ffa8d8;
+  --mood-heart: #ff3b3b;            /* 爱心眼的红 */
+  --mood-spark: #ff5a9e;            /* 周围小爱心的粉 */
+}
+
+/* 爱心眼：一颗 3×3 的像素心。
+   起手那格是心的中排中点，四角补块、下方再补一格做心尖，
+   顶上正中留空就是心形的凹槽 —— 6 个块正好拼成 ♥ */
+.mood--heart .mood__px--eye-l,
+.mood--heart .mood__px--eye-r {
+  top: 24px;                                                   /* (·,2) 中排 */
+  background: var(--mood-heart);
+  box-shadow:
+    -6px -6px 0 var(--mood-heart), 6px -6px 0 var(--mood-heart),
+    -6px 0 0 var(--mood-heart), 6px 0 0 var(--mood-heart),
+    0 6px 0 var(--mood-heart);
+}
+
+.mood--heart .mood__px--eye-l { left: 24px; }                   /* 左心：(2,2) */
+.mood--heart .mood__px--eye-r { left: 48px; }                   /* 右心：(6,2) */
+
+/* 小笑脸 */
+.mood--heart .mood__px--mouth {
+  left: 24px; top: 42px;                                       /* (2,5) */
+  box-shadow:
+    6px 6px 0 var(--mood-ink), 12px 6px 0 var(--mood-ink),
+    18px 0 0 var(--mood-ink);
+}
+
+/* 周围点缀的三颗小爱心：3px 的小块拼一张更小的像素心，
+   故意摆在圆球外面（周围），选中的时候一起亮 */
+.mood--heart .mood__px--spark-a,
+.mood--heart .mood__px--spark-b,
+.mood--heart .mood__px--spark-c {
+  width: 3px;
+  height: 3px;
+  background: var(--mood-spark);
+  box-shadow:
+    6px 0 0 var(--mood-spark),
+    0 3px 0 var(--mood-spark), 3px 3px 0 var(--mood-spark), 6px 3px 0 var(--mood-spark),
+    3px 6px 0 var(--mood-spark);
+}
+
+.mood--heart .mood__px--spark-a { left: -8px; top: 8px; }       /* 左上 */
+.mood--heart .mood__px--spark-b { left: 68px; top: 28px; }      /* 右 */
+.mood--heart .mood__px--spark-c { left: 10px; top: 64px; }      /* 左下 */

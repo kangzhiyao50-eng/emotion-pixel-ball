@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>情绪日历 · 情绪像素块</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- 情绪球形状：p3 的弹窗和 p4 海报共用，先引它再引 p3.css -->
+  <link rel="stylesheet" href="css/mood.css" />
+  <link rel="stylesheet" href="css/p3.css" />
+</head>
+<body class="page-calendar">
+
+  <!-- ==================== 顶栏 ==================== -->
+  <header class="bar">
+    <a class="bar__back" href="index.html">&larr; BACK</a>
+
+    <h1 class="bar__title">情绪日历</h1>
+
+    <!-- 年份可修改 -->
+    <div class="stepper">
+      <button class="stepper__btn" id="prevYear" type="button" aria-label="上一年">&minus;</button>
+      <span class="stepper__value" id="yearLabel">2026</span>
+      <button class="stepper__btn" id="nextYear" type="button" aria-label="下一年">&plus;</button>
+    </div>
+  </header>
+
+  <!-- ==================== 日历 ==================== -->
+  <main class="cal">
+
+    <div class="cal__month">
+      <button class="stepper__btn" id="prevMonth" type="button" aria-label="上个月">&minus;</button>
+      <span class="cal__month-name" id="monthLabel">十月</span>
+      <button class="stepper__btn" id="nextMonth" type="button" aria-label="下个月">&plus;</button>
+    </div>
+
+    <div class="cal__weekdays" aria-hidden="true">
+      <span>MON</span><span>TUE</span><span>WED</span><span>THU</span>
+      <span>FRI</span><span>SAT</span><span>SUN</span>
+    </div>
+
+    <div class="cal__grid" id="grid"></div>
+
+    <p class="cal__stat" id="stat">本月已记录 0 天</p>
+
+    <!-- 确认后弹出的按钮 -->
+    <button class="make-card" id="makeCardBtn" type="button" hidden>
+      生成情绪卡片
+    </button>
+  </main>
+
+  <!-- ==================== 情绪选择弹窗 ==================== -->
+  <div class="modal" id="picker" hidden>
+    <div class="modal__mask" data-close></div>
+
+    <div class="modal__box" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+      <h2 class="modal__title" id="pickerTitle">10 月 14 日</h2>
+      <p class="modal__sub">今天是什么情绪？</p>
+
+      <div class="emo-list" id="emoList"></div>
+
+      <div class="modal__actions">
+        <button class="btn btn--ghost" id="pickerCancel" type="button">取消</button>
+        <button class="btn btn--solid" id="pickerOk" type="button">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status">已保存</div>
+
+  <!-- 情绪球（形状定义在 css/mood.css）：P3 弹窗和 P4 海报共用 -->
+  <script src="js/mood.js"></script>
+  <script src="js/p3.js"></script>
+</body>
+</html>
